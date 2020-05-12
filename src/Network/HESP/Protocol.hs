@@ -3,13 +3,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Network.HESP.Protocol
-  ( Message
+  ( -- * Message
+    Message
     -- ** Constructors
   , mkSimpleString
   , mkSimpleStringUnsafe
   , mkBulkString
+  , mkSimpleError
+  , mkSimpleErrorUnsafe
   , mkArray
   , mkArrayFromList
+
+  , SimpleError (..)
 
     -- * Serialization
   , serialize
@@ -19,6 +24,8 @@ module Network.HESP.Protocol
 import           Control.DeepSeq        (NFData)
 import           Data.ByteString        (ByteString)
 import qualified Data.ByteString.Char8  as BS
+import qualified Data.Text              as Text
+import qualified Data.Text.Encoding     as Text
 import           Data.Vector            (Vector)
 import qualified Data.Vector            as V
 import           GHC.Generics           (Generic)
@@ -30,7 +37,12 @@ import           Network.HESP.Exception (ProtocolException (..))
 
 data Message = SimpleString ByteString
              | BulkString ByteString
+             | SimpleError ByteString ByteString
              | Array (Vector Message)
+  deriving (Eq, Show, Generic, NFData)
+
+data SimpleError = SEErr ByteString
+                 | SESimple ByteString ByteString
   deriving (Eq, Show, Generic, NFData)
 
 mkSimpleString :: ByteString -> Either ProtocolException Message
@@ -46,15 +58,28 @@ mkSimpleStringUnsafe = SimpleString
 mkBulkString :: ByteString -> Message
 mkBulkString = BulkString
 
+mkSimpleError :: SimpleError -> Message
+mkSimpleError (SEErr errmsg)            = SimpleError "ERR" errmsg
+mkSimpleError (SESimple errtype errmsg) = SimpleError (toUpper errtype) errmsg
+  where
+    toUpper = Text.encodeUtf8 . Text.toUpper . Text.strip . Text.decodeUtf8
+
+mkSimpleErrorUnsafe :: SimpleError -> Message
+mkSimpleErrorUnsafe (SEErr errmsg)            = SimpleError "ERR" errmsg
+mkSimpleErrorUnsafe (SESimple errtype errmsg) = SimpleError errtype errmsg
+
 mkArray :: Vector Message -> Message
 mkArray = Array
 
 mkArrayFromList :: [Message] -> Message
 mkArrayFromList xs = Array $ V.fromList xs
 
+-------------------------------------------------------------------------------
+
 serialize :: Message -> ByteString
 serialize (SimpleString bs) = serializeSimpleString bs
 serialize (BulkString bs)   = serializeBulkString bs
+serialize (SimpleError t m) = serializeSimpleError t m
 serialize (Array xs)        = serializeArray xs
 
 deserializeOnly :: ByteString -> Either String Message
@@ -69,6 +94,9 @@ serializeSimpleString bs = BS.cons '+' bs <> sep
 serializeBulkString :: ByteString -> ByteString
 serializeBulkString bs = BS.cons '$' $ len <> sep <> bs <> sep
   where len = pack $ BS.length bs
+
+serializeSimpleError :: ByteString -> ByteString -> ByteString
+serializeSimpleError errtype errmsg = BS.concat ["-", errtype, " ", errmsg, sep]
 
 serializeArray :: Vector Message -> ByteString
 serializeArray ms = BS.cons '*' $ len <> sep <> go ms
@@ -93,6 +121,7 @@ parser = do
   case c of
     '+' -> SimpleString <$> str
     '$' -> BulkString <$> fixedstr
+    '-' -> uncurry SimpleError <$> err
     '*' -> Array <$> array
     _   -> fail $ BS.unpack $ "Unknown type: " `BS.snoc` c
 
@@ -116,6 +145,17 @@ fixedstr :: P.Scanner ByteString
 fixedstr = do
   len <- decimal
   P.take len <* eol
+
+{-# INLINE err #-}
+err :: P.Scanner (ByteString, ByteString)
+err = do
+  errtype <- word
+  errmsg <- str
+  return (errtype, errmsg)
+
+{-# INLINE word #-}
+word :: P.Scanner ByteString
+word = P.takeWhileChar8 (/= ' ') <* P.skipSpace
 
 {-# INLINE eol #-}
 eol :: P.Scanner ()
