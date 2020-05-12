@@ -14,6 +14,7 @@ spec :: Spec
 spec = do
   simpleString
   bulkString
+  simpleError
 
 simpleString :: Spec
 simpleString = describe "Simple String" $ do
@@ -48,6 +49,29 @@ bulkString = describe "Bulk String" $ do
       P.serialize (P.mkBulkString sourceUtf8) `shouldBe` resultUtf8
     it "utf8 deserialize" $ do
       P.deserializeOnly resultUtf8 `shouldBe` Right (P.mkBulkString sourceBS)
+
+simpleError :: Spec
+simpleError = describe "Simple Error" $ do
+  context "Serialization" $ do
+    let source = "this is an error message"
+    let result = "-ERR this is an error message\r\n"
+    it "serialize: generic error type" $ do
+      P.serialize (P.mkSimpleError (P.SEErr source)) `shouldBe` result
+    it "deserialize: generic error type" $ do
+      let expect = Right (P.mkSimpleErrorUnsafe (P.SEErr source))
+      P.deserializeOnly result `shouldBe` expect
+    let customType = "SOMEERROR"
+    let customSrc = "this is an error message"
+    let customRst = "-SOMEERROR this is an error message\r\n"
+    let customRstSp = "-SOMEERROR   this is an error message\r\n"
+    it "serialize: user defined error type" $ do
+      let src = P.mkSimpleError (P.SESimple customType customSrc)
+      P.serialize src `shouldBe` customRst
+    it "deserialize: user defined error type" $ do
+      let srcStr = show $ P.deserializeOnly customRstSp
+      let eptStr = "Right (SimpleError \"SOMEERROR\" "
+                <> "\"this is an error message\")"
+      srcStr `shouldBe` eptStr
 
 -------------------------------------------------------------------------------
 
