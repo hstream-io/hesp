@@ -31,7 +31,7 @@ simpleString = describe "Simple String" $ do
     it "simple serialize" $ do
       P.serialize (P.mkSimpleStringUnsafe source) `shouldBe` result
     it "simple deserialize" $ do
-      P.deserializeOnly result `shouldBe` Right (P.mkSimpleStringUnsafe source)
+      P.deserialize result `shouldBe` Right (P.mkSimpleStringUnsafe source)
 
 bulkString :: Spec
 bulkString = describe "Bulk String" $ do
@@ -44,11 +44,11 @@ bulkString = describe "Bulk String" $ do
     it "simple serialize" $ do
       P.serialize (P.mkBulkString source) `shouldBe` result
     it "simple deserialize" $ do
-      P.deserializeOnly result `shouldBe` Right (P.mkBulkString source)
+      P.deserialize result `shouldBe` Right (P.mkBulkString source)
     it "utf8 serialize" $ do
       P.serialize (P.mkBulkString sourceUtf8) `shouldBe` resultUtf8
     it "utf8 deserialize" $ do
-      P.deserializeOnly resultUtf8 `shouldBe` Right (P.mkBulkString sourceBS)
+      P.deserialize resultUtf8 `shouldBe` Right (P.mkBulkString sourceBS)
 
 simpleError :: Spec
 simpleError = describe "Simple Error" $ do
@@ -59,7 +59,7 @@ simpleError = describe "Simple Error" $ do
       P.serialize (P.mkSimpleError (P.SEErr source)) `shouldBe` result
     it "deserialize: generic error type" $ do
       let expect = Right (P.mkSimpleErrorUnsafe (P.SEErr source))
-      P.deserializeOnly result `shouldBe` expect
+      P.deserialize result `shouldBe` expect
     let customType = "SOMEERROR"
     let customSrc = "this is an error message"
     let customRst = "-SOMEERROR this is an error message\r\n"
@@ -68,7 +68,7 @@ simpleError = describe "Simple Error" $ do
       let src = P.mkSimpleError (P.SESimple customType customSrc)
       P.serialize src `shouldBe` customRst
     it "deserialize: user defined error type" $ do
-      let srcStr = show $ P.deserializeOnly customRstSp
+      let srcStr = show $ P.deserialize customRstSp
       let eptStr = "Right (SimpleError \"SOMEERROR\" "
                 <> "\"this is an error message\")"
       srcStr `shouldBe` eptStr
