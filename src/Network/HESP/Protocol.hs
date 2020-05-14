@@ -34,6 +34,7 @@ import           Network.HESP.Exception (ProtocolException (..))
 data Message = SimpleString ByteString
              | BulkString ByteString
              | SimpleError ByteString ByteString
+             | Boolean Bool
              | Array (Vector Message)
   deriving (Eq, Show, Generic, NFData)
 
@@ -63,6 +64,7 @@ serialize :: Message -> ByteString
 serialize (SimpleString bs) = serializeSimpleString bs
 serialize (BulkString bs)   = serializeBulkString bs
 serialize (SimpleError t m) = serializeSimpleError t m
+serialize (Boolean b)       = serializeBoolean b
 serialize (Array xs)        = serializeArray xs
 
 -- | Deserialize the complete input, without resupplying.
@@ -95,6 +97,10 @@ serializeBulkString bs = BS.cons '$' $ len <> sep <> bs <> sep
 serializeSimpleError :: ByteString -> ByteString -> ByteString
 serializeSimpleError errtype errmsg = BS.concat ["-", errtype, " ", errmsg, sep]
 
+serializeBoolean :: Bool -> ByteString
+serializeBoolean True  = BS.cons '#' $ "t" <> sep
+serializeBoolean False = BS.cons '#' $ "f" <> sep
+
 serializeArray :: Vector Message -> ByteString
 serializeArray ms = BS.cons '*' $ len <> sep <> go ms
   where
@@ -119,6 +125,7 @@ parser = do
     '+' -> SimpleString <$> str
     '$' -> BulkString <$> fixedstr
     '-' -> uncurry SimpleError <$> err
+    '#' -> Boolean <$> bool
     '*' -> Array <$> array
     _   -> fail $ BS.unpack $ "Unknown type: " `BS.snoc` c
 
@@ -132,6 +139,16 @@ array = do
 {-# INLINE decimal #-}
 decimal :: Integral n => P.Scanner n
 decimal = P.decimal <* eol
+
+{-# INLINE bool #-}
+bool :: P.Scanner Bool
+bool = b <* eol
+  where
+    b = do
+      c <- P.anyChar8
+      case c of
+        't' -> return True
+        _   -> return False
 
 {-# INLINE str #-}
 str :: P.Scanner ByteString

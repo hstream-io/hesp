@@ -11,9 +11,24 @@ import qualified Network.HESP       as P
 
 spec :: Spec
 spec = do
+  boolean
   simpleString
   bulkString
   simpleError
+
+boolean :: Spec
+boolean = describe "Boolean" $ do
+  context "Serialization" $ do
+    let tr = "#t\r\n"
+    let fr = "#f\r\n"
+    it "serialize: True" $ do
+      P.serialize (P.Boolean True) `shouldBe` tr
+    it "serialize: False" $ do
+      P.serialize (P.Boolean False) `shouldBe` fr
+    it "deserialize: True" $ do
+      P.deserialize tr `shouldBe` Right (P.Boolean True)
+    it "deserialize: False" $ do
+      P.deserialize fr `shouldBe` Right (P.Boolean False)
 
 simpleString :: Spec
 simpleString = describe "Simple String" $ do
