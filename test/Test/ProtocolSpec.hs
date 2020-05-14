@@ -2,12 +2,11 @@
 
 module Test.ProtocolSpec (spec) where
 
-import           Data.Text              (Text)
-import           Data.Text.Encoding     (encodeUtf8)
+import           Data.Text          (Text)
+import           Data.Text.Encoding (encodeUtf8)
 import           Test.Hspec
 
-import qualified Network.HESP.Exception as E
-import qualified Network.HESP.Protocol  as P
+import qualified Network.HESP       as P
 
 
 spec :: Spec
@@ -75,6 +74,6 @@ simpleError = describe "Simple Error" $ do
 
 -------------------------------------------------------------------------------
 
-hasInvalidCharErrEi :: Either E.ProtocolException a -> Bool
-hasInvalidCharErrEi (Left (E.HasInvalidChar _)) = True
+hasInvalidCharErrEi :: Either P.ProtocolException a -> Bool
+hasInvalidCharErrEi (Left (P.HasInvalidChar _)) = True
 hasInvalidCharErrEi _                           = False
