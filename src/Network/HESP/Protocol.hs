@@ -4,17 +4,11 @@
 
 module Network.HESP.Protocol
   ( -- * Message
-    Message
-    -- ** Constructors
-  , mkSimpleString
-  , mkSimpleStringUnsafe
-  , mkBulkString
-  , mkSimpleError
-  , mkSimpleErrorUnsafe
-  , mkArray
+    Message (..)
+    -- ** Extra Constructors
+  , mkSimpleStringSafe
+  , mkSimpleErrorSafe
   , mkArrayFromList
-
-  , SimpleError (..)
 
     -- * Serialization
   , serialize
@@ -43,35 +37,22 @@ data Message = SimpleString ByteString
              | Array (Vector Message)
   deriving (Eq, Show, Generic, NFData)
 
-data SimpleError = SEErr ByteString
-                 | SESimple ByteString ByteString
-  deriving (Eq, Show, Generic, NFData)
-
-mkSimpleString :: ByteString -> Either ProtocolException Message
-mkSimpleString bs =
+mkSimpleStringSafe :: ByteString -> Either ProtocolException Message
+mkSimpleStringSafe bs =
   let hasInvalidChar = BS.elem '\r' bs || BS.elem '\n' bs
    in if hasInvalidChar
          then Left $ HasInvalidChar "\r or \n"
          else Right $ SimpleString bs
 
-mkSimpleStringUnsafe :: ByteString -> Message
-mkSimpleStringUnsafe = SimpleString
-
-mkBulkString :: ByteString -> Message
-mkBulkString = BulkString
-
-mkSimpleError :: SimpleError -> Message
-mkSimpleError (SEErr errmsg)            = SimpleError "ERR" errmsg
-mkSimpleError (SESimple errtype errmsg) = SimpleError (toUpper errtype) errmsg
+mkSimpleErrorSafe :: ByteString
+                  -- ^ error type, should in upper case,
+                  -- the generic one is @ERR@
+                  -> ByteString
+                  -- ^ error message
+                  -> Message
+mkSimpleErrorSafe errtype = SimpleError (toUpper errtype)
   where
     toUpper = Text.encodeUtf8 . Text.toUpper . Text.strip . Text.decodeUtf8
-
-mkSimpleErrorUnsafe :: SimpleError -> Message
-mkSimpleErrorUnsafe (SEErr errmsg)            = SimpleError "ERR" errmsg
-mkSimpleErrorUnsafe (SESimple errtype errmsg) = SimpleError errtype errmsg
-
-mkArray :: Vector Message -> Message
-mkArray = Array
 
 mkArrayFromList :: [Message] -> Message
 mkArrayFromList xs = Array $ V.fromList xs
