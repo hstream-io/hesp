@@ -24,6 +24,7 @@ serialize (MatchBulkString bs)   = serializeBulkString bs
 serialize (MatchSimpleError t m) = serializeSimpleError t m
 serialize (MatchBoolean b)       = serializeBoolean b
 serialize (MatchArray xs)        = serializeArray xs
+serialize (MatchPush x xs)       = serializePush x xs
 serialize m                      = error $ "Unknown type: " ++ show m
 
 -- | Deserialize the complete input, without resupplying.
@@ -61,12 +62,21 @@ serializeBoolean True  = BS.cons '#' $ "t" <> sep
 serializeBoolean False = BS.cons '#' $ "f" <> sep
 
 serializeArray :: Vector Message -> ByteString
-serializeArray ms = BS.cons '*' $ len <> sep <> go ms
-  where
-    len = pack $ V.length ms
-    go xs = if V.null xs
-               then ""
-               else serialize (V.head xs) <> go (V.tail xs)
+serializeArray ms =
+  let len = pack $ V.length ms
+   in BS.cons '*' $ len <> sep <> goVectorMsgs ms
+
+serializePush :: ByteString -> Vector Message -> ByteString
+serializePush t ms =
+  let len = pack $ V.length ms
+      pushType = serializeBulkString t
+   in BS.cons '>' $ len <> sep <> pushType <> goVectorMsgs ms
+
+goVectorMsgs :: Vector Message -> ByteString
+goVectorMsgs ms =
+  if V.null ms
+     then ""
+     else serialize (V.head ms) <> goVectorMsgs (V.tail ms)
 
 sep :: ByteString
 sep = "\r\n"
@@ -86,6 +96,7 @@ parser = do
     '-' -> uncurry T.mkSimpleError <$> err
     '#' -> T.mkBoolean <$> bool
     '*' -> T.mkArray <$> array
+    '>' -> uncurry T.mkPush <$> push
     _   -> fail $ BS.unpack $ "Unknown type: " `BS.snoc` c
 
 {-# INLINE array #-}
@@ -93,6 +104,16 @@ array :: P.Scanner (V.Vector Message)
 array = do
   len <- decimal
   V.replicateM len parser
+
+push :: P.Scanner (ByteString, V.Vector Message)
+push = do
+  len <- decimal
+  if len >= 2
+     then do ms <- V.replicateM len parser
+             case (V.head ms) of
+               MatchBulkString s -> return (s, V.tail ms)
+               _                 -> fail $ "Invalid type"
+     else fail $ "Invalid length of push type: " <> show len
 
 -- | Parse a non-negative decimal number in ASCII. For example, @10\r\n@
 {-# INLINE decimal #-}

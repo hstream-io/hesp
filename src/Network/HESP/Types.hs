@@ -10,6 +10,7 @@ module Network.HESP.Types
             , MatchSimpleError
             , MatchBoolean
             , MatchArray
+            , MatchPush
             )
     -- * Construction
   , mkSimpleString
@@ -19,6 +20,8 @@ module Network.HESP.Types
   , mkBoolean
   , mkArray
   , mkArrayFromList
+  , mkPush
+  , mkPushFromList
 
     -- * Exception
   , ProtocolException (..)
@@ -45,6 +48,7 @@ data Message = SimpleString ByteString
              | SimpleError ByteString ByteString
              | Boolean Bool
              | Array (Vector Message)
+             | Push ByteString (Vector Message)
   deriving (Eq, Show, Generic, NFData)
 
 -- | Simple strings can not contain the @CR@ nor the @LF@ characters inside.
@@ -74,7 +78,13 @@ mkArray :: Vector Message -> Message
 mkArray = Array
 
 mkArrayFromList :: [Message] -> Message
-mkArrayFromList xs = Array $ V.fromList xs
+mkArrayFromList = Array . V.fromList
+
+mkPush :: ByteString -> Vector Message -> Message
+mkPush = Push
+
+mkPushFromList :: ByteString -> [Message] -> Message
+mkPushFromList ty = Push ty . V.fromList
 
 -- FIXME: complete sigs seems only work for the same module
 {-# COMPLETE MatchSimpleString
@@ -98,6 +108,9 @@ pattern MatchBoolean x <- Boolean x
 
 pattern MatchArray :: Vector Message -> Message
 pattern MatchArray x <- Array x
+
+pattern MatchPush :: ByteString -> Vector Message -> Message
+pattern MatchPush x y <- Push x y
 
 -------------------------------------------------------------------------------
 
