@@ -1,71 +1,30 @@
-{-# LANGUAGE DeriveAnyClass    #-}
-{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Network.HESP.Protocol
-  ( -- * Message
-    Message (..)
-    -- ** Extra Constructors
-  , mkSimpleStringSafe
-  , mkSimpleErrorSafe
-  , mkArrayFromList
-
-    -- * Serialization
-  , serialize
+  ( serialize
   , deserialize
   , deserializeWith
   , deserializeWithMaybe
   ) where
 
-import           Control.DeepSeq        (NFData)
-import           Data.ByteString        (ByteString)
-import qualified Data.ByteString.Char8  as BS
-import qualified Data.Text              as Text
-import qualified Data.Text.Encoding     as Text
-import           Data.Vector            (Vector)
-import qualified Data.Vector            as V
-import           GHC.Generics           (Generic)
-import qualified Scanner                as P
+import           Data.ByteString       (ByteString)
+import qualified Data.ByteString.Char8 as BS
+import           Data.Vector           (Vector)
+import qualified Data.Vector           as V
+import qualified Scanner               as P
 
-import           Network.HESP.Exception (ProtocolException (..))
-
--------------------------------------------------------------------------------
-
-data Message = SimpleString ByteString
-             | BulkString ByteString
-             | SimpleError ByteString ByteString
-             | Boolean Bool
-             | Array (Vector Message)
-  deriving (Eq, Show, Generic, NFData)
-
-mkSimpleStringSafe :: ByteString -> Either ProtocolException Message
-mkSimpleStringSafe bs =
-  let hasInvalidChar = BS.elem '\r' bs || BS.elem '\n' bs
-   in if hasInvalidChar
-         then Left $ HasInvalidChar "\r or \n"
-         else Right $ SimpleString bs
-
-mkSimpleErrorSafe :: ByteString
-                  -- ^ error type, should in upper case,
-                  -- the generic one is @ERR@
-                  -> ByteString
-                  -- ^ error message
-                  -> Message
-mkSimpleErrorSafe errtype = SimpleError (toUpper errtype)
-  where
-    toUpper = Text.encodeUtf8 . Text.toUpper . Text.strip . Text.decodeUtf8
-
-mkArrayFromList :: [Message] -> Message
-mkArrayFromList xs = Array $ V.fromList xs
+import           Network.HESP.Types    (Message (..))
+import qualified Network.HESP.Types    as T
 
 -------------------------------------------------------------------------------
 
 serialize :: Message -> ByteString
-serialize (SimpleString bs) = serializeSimpleString bs
-serialize (BulkString bs)   = serializeBulkString bs
-serialize (SimpleError t m) = serializeSimpleError t m
-serialize (Boolean b)       = serializeBoolean b
-serialize (Array xs)        = serializeArray xs
+serialize (MatchSimpleString bs) = serializeSimpleString bs
+serialize (MatchBulkString bs)   = serializeBulkString bs
+serialize (MatchSimpleError t m) = serializeSimpleError t m
+serialize (MatchBoolean b)       = serializeBoolean b
+serialize (MatchArray xs)        = serializeArray xs
+serialize m                      = error $ "Unknown type: " ++ show m
 
 -- | Deserialize the complete input, without resupplying.
 deserialize :: ByteString -> Either String Message
@@ -122,11 +81,11 @@ parser :: P.Scanner Message
 parser = do
   c <- P.anyChar8
   case c of
-    '+' -> SimpleString <$> str
-    '$' -> BulkString <$> fixedstr
-    '-' -> uncurry SimpleError <$> err
-    '#' -> Boolean <$> bool
-    '*' -> Array <$> array
+    '+' -> T.mkSimpleStringUnsafe <$> str
+    '$' -> T.mkBulkString <$> fixedstr
+    '-' -> uncurry T.mkSimpleError <$> err
+    '#' -> T.mkBoolean <$> bool
+    '*' -> T.mkArray <$> array
     _   -> fail $ BS.unpack $ "Unknown type: " `BS.snoc` c
 
 {-# INLINE array #-}
