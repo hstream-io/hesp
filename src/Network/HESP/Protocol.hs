@@ -12,6 +12,9 @@ import qualified Data.ByteString.Char8 as BS
 import           Data.Vector           (Vector)
 import qualified Data.Vector           as V
 import qualified Scanner               as P
+import qualified Data.Set               as S
+import           Data.Set               (Set)
+import           Data.Set               (empty)
 
 import           Network.HESP.Types    (Message (..))
 import qualified Network.HESP.Types    as T
@@ -72,6 +75,16 @@ serializePush t ms =
       pushType = serializeBulkString t
    in BS.cons '>' $ len <> sep <> pushType <> goVectorMsgs ms
 
+serializeSet :: Set Message -> ByteString
+serializeSet ms = BS.cons '~' $ len <> sep <> go ms 
+  where
+    len = pack $ S.size ms
+    go xs = if S.null xs
+              then ""
+              else serialize head <> go (rest) where 
+                head = S.findMin ms
+                rest = S.delete head ms
+
 goVectorMsgs :: Vector Message -> ByteString
 goVectorMsgs ms =
   if V.null ms
@@ -97,7 +110,14 @@ parser = do
     '#' -> T.mkBoolean <$> bool
     '*' -> T.mkArray <$> array
     '>' -> uncurry T.mkPush <$> push
+    '~' -> T.mkSet <$> set
     _   -> fail $ BS.unpack $ "Unknown type: " `BS.snoc` c
+
+{-# INLINE set #-}
+set :: P.Scanner (S.Set Message)
+set = fmap (foldr (\m-> \s-> S.insert m s) (Data.Set.empty) ) array
+
+
 
 {-# INLINE array #-}
 array :: P.Scanner (V.Vector Message)

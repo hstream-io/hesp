@@ -49,6 +49,7 @@ data Message = SimpleString ByteString
              | Boolean Bool
              | Array (Vector Message)
              | Push ByteString (Vector Message)
+             | Set (Set Message)
   deriving (Eq, Show, Generic, NFData)
 
 -- | Simple strings can not contain the @CR@ nor the @LF@ characters inside.
@@ -76,6 +77,9 @@ mkBoolean = Boolean
 
 mkArray :: Vector Message -> Message
 mkArray = Array
+
+mkSet :: Set Message -> Message
+mkSet = Set
 
 mkArrayFromList :: [Message] -> Message
 mkArrayFromList = Array . V.fromList

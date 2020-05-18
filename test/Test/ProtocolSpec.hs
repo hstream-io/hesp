@@ -15,6 +15,28 @@ spec = do
   bulkString
   simpleError
 
+simpleSet :: Spec
+simpleSet = describe "Set" $ do
+  context "Serialization" $ do
+    let data1 = "~3\r\n+1\r\n+2\r\n+3\r\n"
+    let data2 = "~3\r\n#t\r\n+Hello\r\n#f\r\n"
+    let deserialized1 = P.deserialize $ pack data1
+    let deserialized2 = P.deserialize $ pack data2
+    let result1 = Right (Set (fromList [SimpleString "1",SimpleString "2",SimpleString "3"]))
+    let result2 = Right (Set (fromList [SimpleString "Hello",Boolean False,Boolean True]))
+
+    it "set deserialize" $ do
+      deserialized1 `shouldBe` result1
+    it "set deserialize" $ do 
+      deserialized2 `shouldBe` result2
+    it "set serialize" $ do
+      serialize result1 `shouldBe` data1
+    it "set serialize" $ do
+      serialize result2 `shouldBe` data2
+  
+
+
+
 boolean :: Spec
 boolean = describe "Boolean" $ do
   context "Serialization" $ do
@@ -85,6 +107,7 @@ simpleError = describe "Simple Error" $ do
       let eptStr = "Right (SimpleError \"SOMEERROR\" "
                 <> "\"this is an error message\")"
       srcStr `shouldBe` eptStr
+
 
 -------------------------------------------------------------------------------
 
