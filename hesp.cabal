@@ -23,9 +23,9 @@ source-repository head
 
 library
   exposed-modules:  Network.HESP
-  other-modules:    Network.HESP.Exception
-                    Network.HESP.Protocol
+  other-modules:    Network.HESP.Protocol
                     Network.HESP.TCP
+                    Network.HESP.Types
   hs-source-dirs:   src
   build-depends:    base           >= 4.11 && < 5
                   , bytestring     ^>= 0.10

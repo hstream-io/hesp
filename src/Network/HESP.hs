@@ -1,9 +1,11 @@
 module Network.HESP
-  ( module Network.HESP.Protocol
+  ( module Network.HESP.Types
+    -- * Protocol serialization
+  , module Network.HESP.Protocol
+    -- * Simple TCP server
   , module Network.HESP.TCP
-  , module Network.HESP.Exception
   ) where
 
-import           Network.HESP.Exception
 import           Network.HESP.Protocol
 import           Network.HESP.TCP
+import           Network.HESP.Types

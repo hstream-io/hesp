@@ -10,7 +10,7 @@ import qualified Network.Simple.TCP    as TCP
 import qualified Network.Socket        as NS
 
 import           Network.HESP.Protocol (deserializeWithMaybe, serialize)
-import qualified Network.HESP.Protocol as HP
+import qualified Network.HESP.Types as T
 
 data ServerSettings =
   ServerSettings { hostPreference :: TCP.HostPreference
@@ -19,7 +19,7 @@ data ServerSettings =
                  }
 
 runTCPServer :: ServerSettings
-             -> (HP.Message -> IO (Maybe HP.Message))
+             -> (T.Message -> IO (Maybe T.Message))
              -> (String -> IO ())
              -> IO ()
 runTCPServer ServerSettings{..} succC failC =
