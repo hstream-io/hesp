@@ -68,7 +68,7 @@ serializeArray ms =
 
 serializePush :: ByteString -> Vector Message -> ByteString
 serializePush t ms =
-  let len = pack $ V.length ms
+  let len = pack $ V.length ms + 1
       pushType = serializeBulkString t
    in BS.cons '>' $ len <> sep <> pushType <> goVectorMsgs ms
 
