@@ -36,6 +36,7 @@ library
                   , scanner        ^>= 0.3
                   , text           ^>= 1.2
                   , vector         ^>= 0.12
+                  
   default-language: Haskell2010
   ghc-options:      -Wall -Wcompat -Widentities -Wincomplete-record-updates
                     -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
@@ -45,7 +46,7 @@ test-suite hesp-test
   main-is:            Spec.hs
   other-modules:      Test.ProtocolSpec
   hs-source-dirs:     test
-  build-depends:      base >= 4.11 && < 5, bytestring ^>= 0.10, hesp, hspec, text ^>= 1.2
+  build-depends:      base >= 4.11 && < 5, bytestring ^>= 0.10, hesp, hspec, text ^>= 1.2, containers     ^>= 0.6
   default-language:   Haskell2010
   build-tool-depends: hspec-discover:hspec-discover == 2.*
   ghc-options:        -Wall -Wcompat -Widentities -Wincomplete-record-updates

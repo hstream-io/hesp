@@ -5,6 +5,8 @@ module Test.ProtocolSpec (spec) where
 import           Data.Text          (Text)
 import           Data.Text.Encoding (encodeUtf8)
 import           Test.Hspec
+import Data.ByteString.Char8 as C8 (pack)
+import Data.Set (fromList)
 
 import qualified Network.HESP       as P
 
@@ -14,25 +16,41 @@ spec = do
   simpleString
   bulkString
   simpleError
+  simpleSet
 
 simpleSet :: Spec
 simpleSet = describe "Set" $ do
   context "Serialization" $ do
-    let data1 = "~3\r\n+1\r\n+2\r\n+3\r\n"
-    let data2 = "~3\r\n#t\r\n+Hello\r\n#f\r\n"
-    let deserialized1 = P.deserialize $ pack data1
-    let deserialized2 = P.deserialize $ pack data2
-    let result1 = Right (Set (fromList [SimpleString "1",SimpleString "2",SimpleString "3"]))
-    let result2 = Right (Set (fromList [SimpleString "Hello",Boolean False,Boolean True]))
+    let data1 = pack "~3\r\n+1\r\n+2\r\n+3\r\n"
+    let data2 = pack "~3\r\n+Hello\r\n#f\r\n#t\r\n"
+    let deserialized1 = P.deserialize $ data1
+    let deserialized2 = P.deserialize $ data2
+   -- let result1 = (Set (fromList [SimpleString "1",SimpleString "2",SimpleString "3"]))
+   -- let result2 = (Set (fromList [SimpleString "Hello",Boolean False, Boolean True]))
+    let x1 = (case deserialized1 of
+                          Left s -> P.mkSimpleError (pack s) (pack s)
+                          Right s -> s)
+    let x2 = (case deserialized2 of
+                          Left s -> P.mkSimpleError (pack s) (pack s)
+                          Right s -> s)
+
+    let t1 = P.serialize (case deserialized1 of
+                          Left s -> P.mkSimpleError (pack s) (pack s)
+                          Right s -> s)
+
+    let t2 = P.serialize (case deserialized2 of
+                          Left s -> P.mkSimpleError (pack s) (pack s)
+                          Right s -> s)
+    
+    it "print" $ do
+      print (t1)
+      print (t2)
 
     it "set deserialize" $ do
-      deserialized1 `shouldBe` result1
+      t1 `shouldBe` data1
     it "set deserialize" $ do 
-      deserialized2 `shouldBe` result2
-    it "set serialize" $ do
-      serialize result1 `shouldBe` data1
-    it "set serialize" $ do
-      serialize result2 `shouldBe` data2
+      t2 `shouldBe` data2
+   
   
 
 
@@ -42,6 +60,9 @@ boolean = describe "Boolean" $ do
   context "Serialization" $ do
     let tr = "#t\r\n"
     let fr = "#f\r\n"
+    it "print" $ do 
+      print (P.deserialize tr)
+
     it "serialize: True" $ do
       P.serialize (P.mkBoolean True) `shouldBe` tr
     it "serialize: False" $ do

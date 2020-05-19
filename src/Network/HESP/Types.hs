@@ -11,6 +11,7 @@ module Network.HESP.Types
             , MatchBoolean
             , MatchArray
             , MatchPush
+            , MatchSet
             )
     -- * Construction
   , mkSimpleString
@@ -22,6 +23,7 @@ module Network.HESP.Types
   , mkArrayFromList
   , mkPush
   , mkPushFromList
+  , mkSet
 
     -- * Exception
   , ProtocolException (..)
@@ -39,7 +41,9 @@ import           Data.Typeable         (Typeable)
 import           Data.Vector           (Vector)
 import qualified Data.Vector           as V
 import           GHC.Generics          (Generic)
-
+import qualified Data.Set               as S
+import           Data.Set               (Set)
+import           Data.Set               (empty)
 -------------------------------------------------------------------------------
 
 -- | Message that are send to remote, or receive from remote.
@@ -50,7 +54,7 @@ data Message = SimpleString ByteString
              | Array (Vector Message)
              | Push ByteString (Vector Message)
              | Set (Set Message)
-  deriving (Eq, Show, Generic, NFData)
+  deriving (Eq, Show, Generic, NFData, Ord)
 
 -- | Simple strings can not contain the @CR@ nor the @LF@ characters inside.
 mkSimpleString :: ByteString -> Either ProtocolException Message
@@ -115,6 +119,9 @@ pattern MatchArray x <- Array x
 
 pattern MatchPush :: ByteString -> Vector Message -> Message
 pattern MatchPush x y <- Push x y
+
+pattern MatchSet :: Set Message -> Message
+pattern MatchSet x <- Set x
 
 -------------------------------------------------------------------------------
 
