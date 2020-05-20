@@ -7,7 +7,7 @@ module Network.HESP.TCP
   ) where
 
 import qualified Network.Simple.TCP    as TCP
-import qualified Network.Socket        as NS
+import qualified Network.Socket         as NS
 
 import           Network.HESP.Protocol (deserializeWithMaybe, serialize)
 import qualified Network.HESP.Types as T

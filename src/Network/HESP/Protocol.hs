@@ -77,12 +77,12 @@ serializePush t ms =
    in BS.cons '>' $ len <> sep <> pushType <> goVectorMsgs ms
 
 serializeSet :: S.Set Message -> ByteString
-serializeSet ms = serialize' (S.toList ms) where
-                  serialize' xs = BS.cons '~' $ len <> sep <> go xs where 
-                  len = pack $ length ms
-                  go xs = case xs of
-                          [] -> ""
-                          (c:cs) -> serialize (c) <> go (cs)
+serializeSet ms = serialize' $ S.toList ms
+  where
+    serialize' xs = BS.cons '~' $ len <> sep <> go xs 
+    len = pack $ length ms
+    go [] = ""
+    go (c:cs) = serialize c <> go cs
 
 goVectorMsgs :: Vector Message -> ByteString
 goVectorMsgs ms =
@@ -114,7 +114,7 @@ parser = do
 
 {-# INLINE set #-}
 set :: P.Scanner (S.Set Message)
-set = fmap (foldr (\m-> \s-> S.insert m s) (S.empty) ) array
+set = fmap (foldr (\m s-> S.insert m s) S.empty) array
 
 
 
