@@ -42,8 +42,7 @@ import           Data.Vector           (Vector)
 import qualified Data.Vector           as V
 import           GHC.Generics          (Generic)
 import qualified Data.Set               as S
-import           Data.Set               (Set)
-import           Data.Set               (empty)
+
 -------------------------------------------------------------------------------
 
 -- | Message that are send to remote, or receive from remote.
@@ -53,7 +52,7 @@ data Message = SimpleString ByteString
              | Boolean Bool
              | Array (Vector Message)
              | Push ByteString (Vector Message)
-             | Set (Set Message)
+             | Set (S.Set Message)
   deriving (Eq, Show, Generic, NFData, Ord)
 
 -- | Simple strings can not contain the @CR@ nor the @LF@ characters inside.
@@ -82,7 +81,7 @@ mkBoolean = Boolean
 mkArray :: Vector Message -> Message
 mkArray = Array
 
-mkSet :: Set Message -> Message
+mkSet :: S.Set Message -> Message
 mkSet = Set
 
 mkArrayFromList :: [Message] -> Message
@@ -120,7 +119,7 @@ pattern MatchArray x <- Array x
 pattern MatchPush :: ByteString -> Vector Message -> Message
 pattern MatchPush x y <- Push x y
 
-pattern MatchSet :: Set Message -> Message
+pattern MatchSet :: S.Set Message -> Message
 pattern MatchSet x <- Set x
 
 -------------------------------------------------------------------------------

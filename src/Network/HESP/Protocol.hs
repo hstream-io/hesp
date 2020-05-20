@@ -13,8 +13,7 @@ import           Data.Vector           (Vector)
 import qualified Data.Vector           as V
 import qualified Scanner               as P
 import qualified Data.Set               as S
-import           Data.Set               (Set)
-import           Data.Set               (empty, toList)
+
 
 import           Network.HESP.Types    (Message (..))
 import qualified Network.HESP.Types    as T
@@ -28,7 +27,7 @@ serialize (MatchSimpleError t m) = serializeSimpleError t m
 serialize (MatchBoolean b)       = serializeBoolean b
 serialize (MatchArray xs)        = serializeArray xs
 serialize (MatchPush x xs)       = serializePush x xs
-serialize (MatchSet xs)           = serializeSet xs
+serialize (MatchSet xs)          = serializeSet xs
 serialize m                      = error $ "Unknown type: " ++ show m
 
 
@@ -77,9 +76,9 @@ serializePush t ms =
       pushType = serializeBulkString t
    in BS.cons '>' $ len <> sep <> pushType <> goVectorMsgs ms
 
-serializeSet :: Set Message -> ByteString
-serializeSet ms = serialize' (toList ms) where
-                  serialize' ms = BS.cons '~' $ len <> sep <> go ms where 
+serializeSet :: S.Set Message -> ByteString
+serializeSet ms = serialize' (S.toList ms) where
+                  serialize' xs = BS.cons '~' $ len <> sep <> go xs where 
                   len = pack $ length ms
                   go xs = case xs of
                           [] -> ""
@@ -115,7 +114,7 @@ parser = do
 
 {-# INLINE set #-}
 set :: P.Scanner (S.Set Message)
-set = fmap (foldr (\m-> \s-> S.insert m s) (Data.Set.empty) ) array
+set = fmap (foldr (\m-> \s-> S.insert m s) (S.empty) ) array
 
 
 
