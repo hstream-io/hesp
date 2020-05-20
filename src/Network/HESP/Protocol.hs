@@ -12,7 +12,7 @@ import qualified Data.ByteString.Char8 as BS
 import           Data.Vector           (Vector)
 import qualified Data.Vector           as V
 import qualified Scanner               as P
-import qualified Data.Set               as S
+import qualified Data.Set              as S
 
 
 import           Network.HESP.Types    (Message (..))

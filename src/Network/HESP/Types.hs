@@ -41,7 +41,7 @@ import           Data.Typeable         (Typeable)
 import           Data.Vector           (Vector)
 import qualified Data.Vector           as V
 import           GHC.Generics          (Generic)
-import qualified Data.Set               as S
+import qualified Data.Set              as S
 
 -------------------------------------------------------------------------------
 
