@@ -100,19 +100,20 @@ parser = do
     _   -> fail $ BS.unpack $ "Unknown type: " `BS.snoc` c
 
 {-# INLINE array #-}
-array :: P.Scanner (V.Vector Message)
+array :: P.Scanner (Vector Message)
 array = do
   len <- decimal
   V.replicateM len parser
 
-push :: P.Scanner (ByteString, V.Vector Message)
+{-# INLINE push #-}
+push :: P.Scanner (ByteString, Vector Message)
 push = do
   len <- decimal
   if len >= 2
      then do ms <- V.replicateM len parser
-             case (V.head ms) of
+             case V.head ms of
                MatchBulkString s -> return (s, V.tail ms)
-               _                 -> fail $ "Invalid type"
+               _                 -> fail "Invalid type"
      else fail $ "Invalid length of push type: " <> show len
 
 -- | Parse a non-negative decimal number in ASCII. For example, @10\r\n@
