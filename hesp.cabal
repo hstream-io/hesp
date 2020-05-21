@@ -11,7 +11,7 @@ author:             mu
 maintainer:         lambda@emqx.io
 tested-with:        GHC == 8.8.1, GHC == 8.6.5
 category:           Network
-homepage:           https://github.com/hstream-io/hesp#readme
+homepage:           https://github.com/hstream-io/hesp
 bug-reports:        https://github.com/hstream-io/hesp/issues
 build-type:         Simple
 extra-source-files: README.md
@@ -23,6 +23,7 @@ source-repository head
 
 library
   exposed-modules:  Network.HESP
+                    Network.HESP.Commands
   other-modules:    Network.HESP.Protocol
                     Network.HESP.TCP
                     Network.HESP.Types
