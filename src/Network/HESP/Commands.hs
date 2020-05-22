@@ -1,15 +1,15 @@
+{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 
 module Network.HESP.Commands
   ( CommandName
   , CommandParams
-  , CommandAction
-  , Commands
+  , CommandAction (CommandAction)
+  , CommandBox
   , mkCommandsFromList
   , commandRegister
   , getCommand
-  , runCommand
   , commandParser
   , extractBulkStringParam
   , extractBulkStringParam2
@@ -19,7 +19,6 @@ import           Control.Applicative (liftA2)
 import           Data.ByteString     (ByteString)
 import           Data.Map.Strict     (Map)
 import qualified Data.Map.Strict     as Map
-import           Data.Maybe          (fromMaybe)
 import           Data.Vector         (Vector, (!?))
 import qualified Data.Vector         as V
 
@@ -29,29 +28,25 @@ import           Network.HESP.Types  (Message (..))
 
 type CommandName = ByteString
 type CommandParams = Vector Message
-type CommandAction = CommandParams -> IO ()
 
-newtype Commands = Commands (Map CommandName CommandAction)
-  deriving (Semigroup, Monoid)
+data CommandAction where
+  CommandAction :: (CommandParams -> a) -> CommandAction
 
-mkCommandsFromList :: [(CommandName, CommandAction)] -> Commands
-mkCommandsFromList = Commands . Map.fromList
+instance Show CommandAction where
+  show _ = "<CommandAction>"
 
-commandRegister :: CommandName
-                -> (CommandParams -> IO ())
-                -> Commands
-                -> Commands
-commandRegister name action (Commands cmds) =
-  Commands $ Map.insert name action cmds
+newtype CommandBox = CommandBox (Map CommandName CommandAction)
+  deriving (Semigroup, Monoid, Show)
 
-getCommand :: Commands -> CommandName -> Maybe CommandAction
-getCommand (Commands cmds) name = Map.lookup name cmds
+mkCommandsFromList :: [(CommandName, CommandAction)] -> CommandBox
+mkCommandsFromList = CommandBox . Map.fromList
 
-runCommand :: Commands -> CommandName -> CommandParams -> IO ()
-runCommand cmds name params =
-  let action = getCommand cmds name
-      f = fromMaybe (const $ return ()) action
-   in f params
+commandRegister :: CommandName -> CommandAction -> CommandBox -> CommandBox
+commandRegister name action (CommandBox cmds) =
+  CommandBox $ Map.insert name action cmds
+
+getCommand :: CommandBox -> CommandName -> Maybe CommandAction
+getCommand (CommandBox cmds) name = Map.lookup name cmds
 
 commandParser :: Message -> Either ByteString (CommandName, CommandParams)
 commandParser msg = validateProtoType msg >>= validateCommand
