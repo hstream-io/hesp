@@ -5,11 +5,11 @@
 {-# LANGUAGE ViewPatterns      #-}
 
 module Network.HESP.Types
-  ( Message ( Integer
+  ( Message ( Boolean
+            , Integer
             , MatchSimpleString
             , MatchBulkString
             , MatchSimpleError
-            , MatchBoolean
             , MatchArray
             , MatchPush
             )
@@ -18,7 +18,6 @@ module Network.HESP.Types
   , mkSimpleStringUnsafe
   , mkBulkString
   , mkSimpleError
-  , mkBoolean
   , mkArray
   , mkArrayFromList
   , mkPush
@@ -73,9 +72,6 @@ mkSimpleError :: ByteString -- ^ error type
               -> Message
 mkSimpleError = SimpleError
 
-mkBoolean :: Bool -> Message
-mkBoolean = Boolean
-
 mkArray :: Vector Message -> Message
 mkArray = Array
 
@@ -92,8 +88,9 @@ mkPushFromList ty = Push ty . V.fromList
 {-# COMPLETE MatchSimpleString
   , MatchBulkString
   , MatchSimpleError
-  , MatchBoolean
   , MatchArray
+  , Boolean
+  , Integer
   #-}
 
 pattern MatchSimpleString :: ByteString -> Message
@@ -104,9 +101,6 @@ pattern MatchBulkString x <- BulkString x
 
 pattern MatchSimpleError :: ByteString -> ByteString -> Message
 pattern MatchSimpleError tp mg <- SimpleError tp mg
-
-pattern MatchBoolean :: Bool -> Message
-pattern MatchBoolean x <- Boolean x
 
 pattern MatchArray :: Vector Message -> Message
 pattern MatchArray x <- Array x

@@ -22,7 +22,7 @@ serialize :: Message -> ByteString
 serialize (MatchSimpleString bs) = serializeSimpleString bs
 serialize (MatchBulkString bs)   = serializeBulkString bs
 serialize (MatchSimpleError t m) = serializeSimpleError t m
-serialize (MatchBoolean b)       = serializeBoolean b
+serialize (Boolean b)            = serializeBoolean b
 serialize (Integer i)            = serializeInteger i
 serialize (MatchArray xs)        = serializeArray xs
 serialize (MatchPush x xs)       = serializePush x xs
@@ -98,7 +98,7 @@ parser = do
     '+' -> T.mkSimpleStringUnsafe <$> str
     '$' -> T.mkBulkString <$> fixedstr
     '-' -> uncurry T.mkSimpleError <$> err
-    '#' -> T.mkBoolean <$> bool
+    '#' -> T.Boolean <$> bool
     ':' -> T.Integer <$> integer
     '*' -> T.mkArray <$> array
     '>' -> uncurry T.mkPush <$> push
