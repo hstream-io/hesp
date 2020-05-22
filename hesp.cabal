@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               hesp
-version:            0.1.0.0
+version:            0.0.0.0
 synopsis:           Network protocol for HStream.
 description:        Please see the README on Github at
                     <https://github.com/hstream-io/hesp#readme>
