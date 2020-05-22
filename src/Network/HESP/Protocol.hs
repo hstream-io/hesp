@@ -23,6 +23,7 @@ serialize (MatchSimpleString bs) = serializeSimpleString bs
 serialize (MatchBulkString bs)   = serializeBulkString bs
 serialize (MatchSimpleError t m) = serializeSimpleError t m
 serialize (MatchBoolean b)       = serializeBoolean b
+serialize (Integer i)            = serializeInteger i
 serialize (MatchArray xs)        = serializeArray xs
 serialize (MatchPush x xs)       = serializePush x xs
 serialize m                      = error $ "Unknown type: " ++ show m
@@ -61,6 +62,9 @@ serializeBoolean :: Bool -> ByteString
 serializeBoolean True  = BS.cons '#' $ "t" <> sep
 serializeBoolean False = BS.cons '#' $ "f" <> sep
 
+serializeInteger :: Integer -> ByteString
+serializeInteger i = BS.cons ':' $ pack i <> sep
+
 serializeArray :: Vector Message -> ByteString
 serializeArray ms =
   let len = pack $ V.length ms
@@ -95,6 +99,7 @@ parser = do
     '$' -> T.mkBulkString <$> fixedstr
     '-' -> uncurry T.mkSimpleError <$> err
     '#' -> T.mkBoolean <$> bool
+    ':' -> T.Integer <$> integer
     '*' -> T.mkArray <$> array
     '>' -> uncurry T.mkPush <$> push
     _   -> fail $ BS.unpack $ "Unknown type: " `BS.snoc` c
@@ -120,6 +125,21 @@ push = do
 {-# INLINE decimal #-}
 decimal :: Integral n => P.Scanner n
 decimal = P.decimal <* eol
+
+-- | Parse a signed integer.
+--
+-- >>> P.scanOnly integer "1\r\n"
+-- Right 1
+--
+-- >>> P.scanOnly integer "-1.1\r\n"
+-- Right (-1)
+{-# INLINE integer #-}
+integer :: P.Scanner Integer
+integer = do
+  i <- str
+  case BS.readInteger i of
+    Just (l, _) -> return l
+    Nothing     -> fail "Not an integer"
 
 {-# INLINE bool #-}
 bool :: P.Scanner Bool
