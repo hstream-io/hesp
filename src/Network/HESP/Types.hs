@@ -5,7 +5,8 @@
 {-# LANGUAGE ViewPatterns      #-}
 
 module Network.HESP.Types
-  ( Message ( MatchSimpleString
+  ( Message ( Integer
+            , MatchSimpleString
             , MatchBulkString
             , MatchSimpleError
             , MatchBoolean
@@ -47,6 +48,7 @@ data Message = SimpleString ByteString
              | BulkString ByteString
              | SimpleError ByteString ByteString
              | Boolean Bool
+             | Integer Integer
              | Array (Vector Message)
              | Push ByteString (Vector Message)
   deriving (Eq, Show, Generic, NFData)

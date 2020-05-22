@@ -9,8 +9,9 @@ import           Test.Hspec
 import qualified Network.HESP       as P
 
 spec :: Spec
-spec = do
+spec = parallel $ do
   boolean
+  integer
   simpleString
   bulkString
   simpleError
@@ -28,6 +29,29 @@ boolean = describe "Boolean" $ do
       P.deserialize tr `shouldBe` Right (P.mkBoolean True)
     it "deserialize: False" $ do
       P.deserialize fr `shouldBe` Right (P.mkBoolean False)
+
+integer :: Spec
+integer = describe "Integer" $ do
+  let se src expect = P.serialize (P.Integer src) `shouldBe` expect
+  let de src expect = P.deserialize src `shouldBe` Right (P.Integer expect)
+  context "Serialization: positive integer" $ do
+    let pint = 100 :: Integer
+    let pbyt = ":100\r\n"
+    it "serialize" $ se pint pbyt
+    it "deserialize" $ de pbyt pint
+  context "Serialization: negative integer" $ do
+    let nint = -100 :: Integer
+    let nbyt = ":-100\r\n"
+    it "serialize" $ se nint nbyt
+    it "deserialize" $ de nbyt nint
+  context "Serialization: zero" $ do
+    let zeroint = 0 :: Integer
+    let zerobyt = ":0\r\n"
+    it "serialize" $ se zeroint zerobyt
+    it "deserialize" $ de zerobyt zeroint
+  context "Serialization: exception" $ do
+    it "deserialize: 3.14 should be 3" $ de ":3.14\r\n" (3 :: Integer)
+
 
 simpleString :: Spec
 simpleString = describe "Simple String" $ do
