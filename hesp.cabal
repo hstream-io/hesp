@@ -32,10 +32,12 @@ library
                   , bytestring     ^>= 0.10
                   , containers     ^>= 0.6
                   , deepseq        ^>= 1.4
-                  , network        ^>= 2.8
+                  , network        >= 2.8 && < 3.2
                   , network-simple ^>= 0.4
+                  , resource-pool  ^>= 0.2
                   , scanner        ^>= 0.3
                   , text           ^>= 1.2
+                  , time           >= 1.8 && < 2
                   , vector         ^>= 0.12
   default-language: Haskell2010
   ghc-options:      -Wall -Wcompat -Widentities -Wincomplete-record-updates
