@@ -22,13 +22,13 @@ boolean = describe "Boolean" $ do
     let tr = "#t\r\n"
     let fr = "#f\r\n"
     it "serialize: True" $ do
-      P.serialize (P.mkBoolean True) `shouldBe` tr
+      P.serialize (P.Boolean True) `shouldBe` tr
     it "serialize: False" $ do
-      P.serialize (P.mkBoolean False) `shouldBe` fr
+      P.serialize (P.Boolean False) `shouldBe` fr
     it "deserialize: True" $ do
-      P.deserialize tr `shouldBe` Right (P.mkBoolean True)
+      P.deserialize tr `shouldBe` Right (P.Boolean True)
     it "deserialize: False" $ do
-      P.deserialize fr `shouldBe` Right (P.mkBoolean False)
+      P.deserialize fr `shouldBe` Right (P.Boolean False)
 
 integer :: Spec
 integer = describe "Integer" $ do
