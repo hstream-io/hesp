@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 
@@ -29,23 +28,22 @@ import           Network.HESP.Types  (Message (..))
 type CommandName = ByteString
 type CommandParams = Vector Message
 
-data CommandAction where
-  CommandAction :: (CommandParams -> a) -> CommandAction
+newtype CommandAction a = CommandAction (CommandParams -> a)
 
-instance Show CommandAction where
+instance Show (CommandAction a) where
   show _ = "<CommandAction>"
 
-newtype CommandBox = CommandBox (Map CommandName CommandAction)
+newtype CommandBox a = CommandBox (Map CommandName (CommandAction a))
   deriving (Semigroup, Monoid, Show)
 
-mkCommandsFromList :: [(CommandName, CommandAction)] -> CommandBox
+mkCommandsFromList :: [(CommandName, CommandAction a)] -> CommandBox a
 mkCommandsFromList = CommandBox . Map.fromList
 
-commandRegister :: CommandName -> CommandAction -> CommandBox -> CommandBox
+commandRegister :: CommandName -> CommandAction a -> CommandBox a -> CommandBox a
 commandRegister name action (CommandBox cmds) =
   CommandBox $ Map.insert name action cmds
 
-getCommand :: CommandBox -> CommandName -> Maybe CommandAction
+getCommand :: CommandBox a -> CommandName -> Maybe (CommandAction a)
 getCommand (CommandBox cmds) name = Map.lookup name cmds
 
 commandParser :: Message -> Either ByteString (CommandName, CommandParams)
