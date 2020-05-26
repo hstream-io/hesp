@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Network.HESP.TCP
-  ( recvMsg
+  ( recvMsgs
   , sendMsg
   , sendMsgs
 
@@ -24,6 +24,7 @@ import qualified Data.ByteString.Lazy.Internal as LBS
 import           Data.Pool                     (Pool)
 import qualified Data.Pool                     as Pool
 import           Data.Time                     (NominalDiffTime)
+import           Data.Vector                   (Vector)
 import qualified Network.Simple.TCP            as TCP
 import           Network.Socket                (SockAddr, Socket)
 import qualified Network.Socket                as NS
@@ -33,8 +34,9 @@ import qualified Network.HESP.Types            as T
 
 -------------------------------------------------------------------------------
 
-recvMsg :: MonadIO m => Socket -> Int -> m (Either String T.Message)
-recvMsg sock bytes = deserializeWithMaybe (TCP.recv sock bytes) Nothing
+-- FIXME: more elegantly
+recvMsgs :: MonadIO m => Socket -> Int -> m (Vector (Either String T.Message))
+recvMsgs sock bytes = deserializeWithMaybe (TCP.recv sock bytes) Nothing
 
 sendMsg :: MonadIO m => Socket -> T.Message -> m ()
 sendMsg sock = TCP.send sock . serialize
