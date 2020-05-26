@@ -36,13 +36,13 @@ deserialize = P.scanOnly parser
 deserializeWith :: Monad m
                 => m ByteString         -- ^ resupply action
                 -> ByteString           -- ^ input
-                -> m (Either String Message)
+                -> m (Vector (Either String Message))
 deserializeWith = flip runScanWith parser
 
 deserializeWithMaybe :: Monad m
                      => m (Maybe ByteString)
                      -> Maybe ByteString
-                     -> m (Either String Message)
+                     -> m (Vector (Either String Message))
 deserializeWithMaybe = flip runScanWithMaybe parser
 
 -------------------------------------------------------------------------------
@@ -176,29 +176,28 @@ word = P.takeWhileChar8 (/= ' ') <* P.skipSpace
 eol :: P.Scanner ()
 eol = P.char8 '\r' *> P.char8 '\n'
 
+-------------------------------------------------------------------------------
+
 runScanWith :: Monad m
             => m ByteString
             -> P.Scanner a
             -> ByteString
-            -> m (Either String a)
-runScanWith more s input = go input (P.scan s)
-  where
-    go bs next =
-      case next bs of
-        P.More next'    -> more >>= \bs' -> go bs' next'
-        P.Done _ r      -> return $ Right r
-        P.Fail _ errmsg -> return $ Left errmsg
+            -> m (Vector (Either String a))
+runScanWith more s input = runScanWithMaybe (Just <$> more) s (Just input)
 
 runScanWithMaybe :: Monad m
                  => m (Maybe ByteString)
                  -> P.Scanner a
                  -> Maybe ByteString
-                 -> m (Either String a)
-runScanWithMaybe more s input = go input (P.scan s)
+                 -> m (Vector (Either String a))
+runScanWithMaybe more s input = go input scaner V.empty
   where
-    go Nothing next = more >>= \bs' -> go bs' next
-    go (Just bs) next =
+    -- FIXME: more efficiently
+    go Nothing next sums = more >>= \bs' -> go bs' next sums
+    go (Just bs) next sums =
       case next bs of
-        P.More next'    -> more >>= \bs' -> go bs' next'
-        P.Done _ r      -> return $ Right r
-        P.Fail _ errmsg -> return $ Left errmsg
+        P.More next'    -> more >>= \bs' -> go bs' next' sums
+        P.Done "" r     -> return $ V.snoc sums (Right r)
+        P.Done rest r   -> go (Just rest) scaner (V.snoc sums (Right r))
+        P.Fail _ errmsg -> return $ V.snoc sums (Left errmsg)
+    scaner = P.scan s
