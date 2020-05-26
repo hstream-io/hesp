@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Network.HESP.TCP
   ( recvMsg
   , sendMsg
@@ -15,6 +17,7 @@ module Network.HESP.TCP
   ) where
 
 import           Control.Monad.IO.Class        (MonadIO)
+import           Control.Monad.Trans.Control   (MonadBaseControl)
 import qualified Data.ByteString               as BS
 import qualified Data.ByteString.Lazy          as LBS
 import qualified Data.ByteString.Lazy.Internal as LBS
@@ -69,9 +72,10 @@ createTcpConnectionPool host port =
       close = TCP.closeSock . fst
    in Pool.createPool r close
 
-withTcpConnection :: Pool (Socket, SockAddr)
-                  -> ((Socket, SockAddr) -> IO a)
-                  -> IO a
+withTcpConnection :: MonadBaseControl IO m
+                  => Pool (Socket, SockAddr)
+                  -> ((Socket, SockAddr) -> m a)
+                  -> m a
 withTcpConnection = Pool.withResource
 
 -------------------------------------------------------------------------------
