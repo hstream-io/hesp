@@ -84,11 +84,12 @@ mkPush = Push
 mkPushFromList :: ByteString -> [Message] -> Message
 mkPushFromList ty = Push ty . V.fromList
 
--- FIXME: complete sigs seems only work for the same module
-{-# COMPLETE MatchSimpleString
+{-# COMPLETE
+    MatchSimpleString
   , MatchBulkString
   , MatchSimpleError
   , MatchArray
+  , MatchPush
   , Boolean
   , Integer
   #-}
