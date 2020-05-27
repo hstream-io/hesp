@@ -26,7 +26,6 @@ serialize (Boolean b)            = serializeBoolean b
 serialize (Integer i)            = serializeInteger i
 serialize (MatchArray xs)        = serializeArray xs
 serialize (MatchPush x xs)       = serializePush x xs
-serialize m                      = error $ "Unknown type: " ++ show m
 
 -- | Deserialize the complete input, without resupplying.
 deserialize :: ByteString -> Either String Message
