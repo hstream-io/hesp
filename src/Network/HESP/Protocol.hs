@@ -192,12 +192,14 @@ runScanWithMaybe :: Monad m
                  -> m (Vector (Either String a))
 runScanWithMaybe more s input = go input scaner V.empty
   where
+    scaner = P.scan s
     -- FIXME: more efficiently
     go Nothing next sums = more >>= \bs' -> go bs' next sums
     go (Just bs) next sums =
       case next bs of
         P.More next'    -> more >>= \bs' -> go bs' next' sums
-        P.Done "" r     -> return $ V.snoc sums (Right r)
-        P.Done rest r   -> go (Just rest) scaner (V.snoc sums (Right r))
+        P.Done rest r   ->
+          if BS.null rest
+             then return $ V.snoc sums (Right r)
+             else go (Just rest) scaner $! V.snoc sums (Right r)
         P.Fail _ errmsg -> return $ V.snoc sums (Left errmsg)
-    scaner = P.scan s
