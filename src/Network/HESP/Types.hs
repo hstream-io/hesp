@@ -22,6 +22,8 @@ module Network.HESP.Types
   , mkArrayFromList
   , mkPush
   , mkPushFromList
+  -- * Extractors
+  , getBulkString
 
     -- * Exception
   , ProtocolException (..)
@@ -108,6 +110,10 @@ pattern MatchArray x <- Array x
 
 pattern MatchPush :: ByteString -> Vector Message -> Message
 pattern MatchPush x y <- Push x y
+
+getBulkString :: Message -> Maybe ByteString
+getBulkString (MatchBulkString x) = Just x
+getBulkString _                   = Nothing
 
 -------------------------------------------------------------------------------
 
