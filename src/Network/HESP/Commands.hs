@@ -12,6 +12,7 @@ module Network.HESP.Commands
   , commandParser
   , extractBulkStringParam
   , extractBulkStringParam2
+  , getBulkStringParam
   ) where
 
 import           Control.Applicative (liftA2)
@@ -22,6 +23,7 @@ import           Data.Vector         (Vector, (!?))
 import qualified Data.Vector         as V
 
 import           Network.HESP.Types  (Message (..))
+import qualified Network.HESP.Types  as T
 
 -------------------------------------------------------------------------------
 
@@ -48,6 +50,9 @@ getCommand (CommandBox cmds) name = Map.lookup name cmds
 
 commandParser :: Message -> Either ByteString (CommandName, CommandParams)
 commandParser msg = validateProtoType msg >>= validateCommand
+
+getBulkStringParam :: CommandParams -> Int -> Maybe ByteString
+getBulkStringParam params idx = T.getBulkString =<< (params !? idx)
 
 extractBulkStringParam :: ByteString      -- ^ label
                        -> CommandParams   -- ^ vector of params
