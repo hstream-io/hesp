@@ -10,6 +10,7 @@ module Network.HESP.Commands
   , commandRegister
   , getCommand
   , commandParser
+  , replyParser
   , extractBulkStringParam
   , extractBulkStringParam2
   , getBulkStringParam
@@ -49,7 +50,10 @@ getCommand :: CommandBox a -> CommandName -> Maybe (CommandAction a)
 getCommand (CommandBox cmds) name = Map.lookup name cmds
 
 commandParser :: Message -> Either ByteString (CommandName, CommandParams)
-commandParser msg = validateProtoType msg >>= validateCommand
+commandParser msg = validateCmdProtoType msg >>= validateCommand
+
+replyParser :: Message -> Either ByteString (CommandName, CommandParams)
+replyParser = validateReply
 
 getBulkStringParam :: CommandParams -> Int -> Maybe ByteString
 getBulkStringParam params idx = T.getBulkString =<< (params !? idx)
@@ -76,10 +80,12 @@ extractBulkStringParam2 (l, i) (l', i') params =
 
 -------------------------------------------------------------------------------
 
-validateProtoType :: Message -> Either ByteString (Vector Message)
-validateProtoType (MatchArray ms) = Right ms
-validateProtoType _ = Left "Command must be sent through array type."
+{-# INLINE validateCmdProtoType #-}
+validateCmdProtoType :: Message -> Either ByteString (Vector Message)
+validateCmdProtoType (MatchArray ms) = Right ms
+validateCmdProtoType _ = Left "Command must be sent through array type."
 
+{-# INLINE validateCommand #-}
 validateCommand :: Vector Message
                 -> Either ByteString (CommandName, CommandParams)
 validateCommand ms =
@@ -87,3 +93,8 @@ validateCommand ms =
       -- an empty vector is returned if @ms@ is empty, there is no exception.
       payloads = V.drop 1 ms
    in liftA2 (,) name (Right payloads)
+
+{-# INLINE validateReply #-}
+validateReply :: Message -> Either ByteString (ByteString, Vector Message)
+validateReply (MatchPush n args) = Right (n, args)
+validateReply _ = Left "Reply must be sent through push type."
