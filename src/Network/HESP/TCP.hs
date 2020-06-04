@@ -1,4 +1,5 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Network.HESP.TCP
   ( recvMsgs
@@ -36,7 +37,7 @@ import qualified Network.HESP.Types            as T
 
 -- FIXME: more elegantly
 recvMsgs :: MonadIO m => Socket -> Int -> m (Vector (Either String T.Message))
-recvMsgs sock bytes = deserializeWithMaybe (TCP.recv sock bytes) Nothing
+recvMsgs sock bytes = deserializeWithMaybe (TCP.recv sock bytes) ""
 
 sendMsg :: MonadIO m => Socket -> T.Message -> m ()
 sendMsg sock = TCP.send sock . serialize

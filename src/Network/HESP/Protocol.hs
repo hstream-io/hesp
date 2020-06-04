@@ -39,8 +39,8 @@ deserializeWith :: Monad m
 deserializeWith = flip runScanWith parser
 
 deserializeWithMaybe :: Monad m
-                     => m (Maybe ByteString)
-                     -> Maybe ByteString
+                     => m (Maybe ByteString)  -- ^ resupply action
+                     -> ByteString            -- ^ initial input, can be null
                      -> m (Vector (Either String Message))
 deserializeWithMaybe = flip runScanWithMaybe parser
 
@@ -182,18 +182,18 @@ runScanWith :: Monad m
             -> P.Scanner a
             -> ByteString
             -> m (Vector (Either String a))
-runScanWith more s input = runScanWithMaybe (Just <$> more) s (Just input)
+runScanWith more = runScanWithMaybe (Just <$> more)
 
 runScanWithMaybe :: Monad m
                  => m (Maybe ByteString)
                  -> P.Scanner a
-                 -> Maybe ByteString
+                 -> ByteString
                  -> m (Vector (Either String a))
-runScanWithMaybe more s input = go input scaner V.empty
+runScanWithMaybe more s input = go (Just input) scaner V.empty
   where
     scaner = P.scan s
     -- FIXME: more efficiently
-    go Nothing next sums = more >>= \bs' -> go bs' next sums
+    go Nothing _ sums = return sums
     go (Just bs) next sums =
       case next bs of
         P.More next'    -> more >>= \bs' -> go bs' next' sums
