@@ -14,6 +14,7 @@ module Network.HESP.Commands
   , extractBulkStringParam
   , extractBulkStringParam2
   , getBulkStringParam
+  , getIntegerParam
   ) where
 
 import           Control.Applicative (liftA2)
@@ -57,6 +58,9 @@ replyParser = validateReply
 
 getBulkStringParam :: CommandParams -> Int -> Maybe ByteString
 getBulkStringParam params idx = T.getBulkString =<< (params !? idx)
+
+getIntegerParam :: CommandParams -> Int -> Maybe Integer
+getIntegerParam params idx = T.getInterger =<< (params !? idx)
 
 extractBulkStringParam :: ByteString      -- ^ label
                        -> CommandParams   -- ^ vector of params

@@ -24,6 +24,7 @@ module Network.HESP.Types
   , mkPushFromList
   -- * Extractors
   , getBulkString
+  , getInterger
 
     -- * Exception
   , ProtocolException (..)
@@ -114,6 +115,10 @@ pattern MatchPush x y <- Push x y
 getBulkString :: Message -> Maybe ByteString
 getBulkString (MatchBulkString x) = Just x
 getBulkString _                   = Nothing
+
+getInterger :: Message -> Maybe Integer
+getInterger (Integer i) = Just i
+getInterger _           = Nothing
 
 -------------------------------------------------------------------------------
 
