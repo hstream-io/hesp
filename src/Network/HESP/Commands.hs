@@ -12,6 +12,7 @@ module Network.HESP.Commands
   , commandParser
   , replyParser
   , extractBulkStringParam
+  , extractIntegerParam
   , extractBulkStringParam2
   , getBulkStringParam
   , getIntegerParam
@@ -81,6 +82,16 @@ extractBulkStringParam2 (l, i) (l', i') params =
   let r = extractBulkStringParam l params i
       r' = extractBulkStringParam l' params i'
    in liftA2 (,) r r'
+
+extractIntegerParam :: ByteString      -- ^ label
+                    -> CommandParams   -- ^ vector of params
+                    -> Int             -- ^ index
+                    -> Either ByteString Integer
+extractIntegerParam label params idx =
+  case params !? idx of
+    Just (Integer x) -> Right x
+    Just _           -> Left $ label <> " must be an integer."
+    Nothing          -> Left $ label <> " can not be empty."
 
 -------------------------------------------------------------------------------
 
