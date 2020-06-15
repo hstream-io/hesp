@@ -14,6 +14,7 @@ module Network.HESP.Commands
   , extractBulkStringParam
   , extractIntegerParam
   , extractBulkStringParam2
+  , extractBulkStringArrayParam
   , getBulkStringParam
   , getIntegerParam
   ) where
@@ -93,6 +94,18 @@ extractIntegerParam label params idx =
     Just _           -> Left $ label <> " must be an integer."
     Nothing          -> Left $ label <> " can not be empty."
 
+extractBulkStringArrayParam :: ByteString      -- ^ label
+                            -> CommandParams   -- ^ vector of params
+                            -> Int             -- ^ index
+                            -> Either ByteString (V.Vector ByteString)
+extractBulkStringArrayParam label params idx =
+  case params !? idx of
+    Just (MatchArray ms) -> do
+      bs <- mapM (extractBulkStringParam "Payload item" ms)
+                 (V.enumFromN 0 $ V.length ms)
+      Right bs
+    Just _               -> Left $ label <> " must be an array."
+    Nothing              -> Left $ label <> " can not be empty."
 -------------------------------------------------------------------------------
 
 {-# INLINE validateCmdProtoType #-}
