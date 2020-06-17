@@ -189,9 +189,9 @@ runScanWithMaybe :: Monad m
                  -> P.Scanner a
                  -> ByteString
                  -> m (Vector (Either String a))
-runScanWithMaybe more s input = go (Just input) scaner V.empty
+runScanWithMaybe more s input = go (Just input) scanner V.empty
   where
-    scaner = P.scan s
+    scanner = P.scan s
     -- FIXME: more efficiently
     go Nothing _ sums = return sums
     go (Just bs) next sums =
@@ -200,5 +200,5 @@ runScanWithMaybe more s input = go (Just input) scaner V.empty
         P.Done rest r   ->
           if BS.null rest
              then return $ V.snoc sums (Right r)
-             else go (Just rest) scaner $! V.snoc sums (Right r)
+             else go (Just rest) scanner $! V.snoc sums (Right r)
         P.Fail _ errmsg -> return $ V.snoc sums (Left errmsg)
