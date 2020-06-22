@@ -12,6 +12,7 @@ module Network.HESP.Types
             , MatchSimpleError
             , MatchArray
             , MatchPush
+            , MatchMap
             )
     -- * Construction
   , mkSimpleString
@@ -22,6 +23,8 @@ module Network.HESP.Types
   , mkArrayFromList
   , mkPush
   , mkPushFromList
+  , mkMap
+  , mkMapFromList
   -- * Extractors
   , getBulkString
   , getInterger
@@ -38,6 +41,8 @@ import           Control.DeepSeq       (NFData)
 import           Control.Exception     (Exception)
 import           Data.ByteString       (ByteString)
 import qualified Data.ByteString.Char8 as BS
+import           Data.Map.Strict       (Map)
+import qualified Data.Map.Strict       as Map
 import           Data.Typeable         (Typeable)
 import           Data.Vector           (Vector)
 import qualified Data.Vector           as V
@@ -53,7 +58,8 @@ data Message = SimpleString ByteString
              | Integer Integer
              | Array (Vector Message)
              | Push ByteString (Vector Message)
-  deriving (Eq, Show, Generic, NFData)
+             | Map (Map Message Message)
+  deriving (Eq, Ord, Show, Generic, NFData)
 
 -- | Simple strings can not contain the @CR@ nor the @LF@ characters inside.
 mkSimpleString :: ByteString -> Either ProtocolException Message
@@ -87,12 +93,19 @@ mkPush = Push
 mkPushFromList :: ByteString -> [Message] -> Message
 mkPushFromList ty = Push ty . V.fromList
 
+mkMap :: Map Message Message -> Message
+mkMap = Map
+
+mkMapFromList :: [(Message, Message)] -> Message
+mkMapFromList = Map . Map.fromList
+
 {-# COMPLETE
     MatchSimpleString
   , MatchBulkString
   , MatchSimpleError
   , MatchArray
   , MatchPush
+  , MatchMap
   , Boolean
   , Integer
   #-}
@@ -111,6 +124,9 @@ pattern MatchArray x <- Array x
 
 pattern MatchPush :: ByteString -> Vector Message -> Message
 pattern MatchPush x y <- Push x y
+
+pattern MatchMap :: Map Message Message -> Message
+pattern MatchMap x <- Map x
 
 getBulkString :: Message -> Maybe ByteString
 getBulkString (MatchBulkString x) = Just x
