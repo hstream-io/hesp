@@ -15,6 +15,8 @@ module Network.HESP.Commands
   , extractIntegerParam
   , extractBulkStringParam2
   , extractBulkStringArrayParam
+  , extractMapParam
+  , extractMapField
   , getBulkStringParam
   , getIntegerParam
   ) where
@@ -23,6 +25,8 @@ import           Control.Applicative (liftA2)
 import           Data.ByteString     (ByteString)
 import           Data.Map.Strict     (Map)
 import qualified Data.Map.Strict     as Map
+import qualified Data.Text           as Text
+import qualified Data.Text.Encoding  as Text
 import           Data.Vector         (Vector, (!?))
 import qualified Data.Vector         as V
 
@@ -106,6 +110,26 @@ extractBulkStringArrayParam label params idx =
       Right bs
     Just _               -> Left $ label <> " must be an array."
     Nothing              -> Left $ label <> " can not be empty."
+
+extractMapParam :: ByteString      -- ^ label
+                -> CommandParams   -- ^ vector of params
+                -> Int             -- ^ index
+                -> Either ByteString (Map Message Message)
+extractMapParam label params idx =
+  case params !? idx of
+    Just (MatchMap m) -> Right m
+    Just _            -> Left $ label <> " must be a map."
+    Nothing           -> Left $ label <> " can not be empty."
+
+extractMapField :: Map Message Message
+                -> Message
+                -> Either ByteString Message
+extractMapField dict field =
+  case Map.lookup field dict of
+    Nothing -> Left $ (Text.encodeUtf8 . Text.pack . show $ field)
+                   <> " field is not found in map."
+    Just v  -> Right v
+
 -------------------------------------------------------------------------------
 
 {-# INLINE validateCmdProtoType #-}
