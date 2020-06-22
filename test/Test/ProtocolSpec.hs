@@ -15,6 +15,7 @@ spec = parallel $ do
   simpleString
   bulkString
   simpleError
+  mapType
 
 boolean :: Spec
 boolean = describe "Boolean" $ do
@@ -109,6 +110,18 @@ simpleError = describe "Simple Error" $ do
       let eptStr = "Right (SimpleError \"SOMEERROR\" "
                 <> "\"this is an error message\")"
       srcStr `shouldBe` eptStr
+
+mapType :: Spec
+mapType = describe "Map Type" $ do
+  context "Serialization" $ do
+    let source = P.mkMapFromList [ (P.mkBulkString "first",  P.Integer 1)
+                                 , (P.mkBulkString "second", P.Integer 2)
+                                 ]
+    let result = "%2\r\n$5\r\nfirst\r\n:1\r\n$6\r\nsecond\r\n:2\r\n"
+    it "serialize" $ do
+      P.serialize source `shouldBe` result
+    it "deserialize" $ do
+      P.deserialize result `shouldBe` Right source
 
 -------------------------------------------------------------------------------
 
