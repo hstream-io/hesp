@@ -7,8 +7,11 @@ module Network.HESP.Protocol
   , deserializeWithMaybe
   ) where
 
+import           Control.Monad         (replicateM)
 import           Data.ByteString       (ByteString)
 import qualified Data.ByteString.Char8 as BS
+import           Data.Map.Strict       (Map)
+import qualified Data.Map.Strict       as Map
 import           Data.Vector           (Vector)
 import qualified Data.Vector           as V
 import qualified Scanner               as P
@@ -26,6 +29,7 @@ serialize (Boolean b)            = serializeBoolean b
 serialize (Integer i)            = serializeInteger i
 serialize (MatchArray xs)        = serializeArray xs
 serialize (MatchPush x xs)       = serializePush x xs
+serialize (MatchMap x)           = serializeMap x
 
 -- | Deserialize the complete input, without resupplying.
 deserialize :: ByteString -> Either String Message
@@ -75,6 +79,12 @@ serializePush t ms =
       pushType = serializeBulkString t
    in BS.cons '>' $ len <> sep <> pushType <> goVectorMsgs ms
 
+serializeMap :: Map Message Message -> ByteString
+serializeMap m =
+  let len = pack $ Map.size m  -- N.B. The size must not exceed maxBound::Int
+      eles = V.fromList $ concatMap (\(k, v) -> [k, v]) (Map.toList m)
+   in BS.cons '%' $ len <> sep <> goVectorMsgs eles
+
 goVectorMsgs :: Vector Message -> ByteString
 goVectorMsgs ms =
   if V.null ms
@@ -101,6 +111,7 @@ parser = do
     ':' -> T.Integer <$> integer
     '*' -> T.mkArray <$> array
     '>' -> uncurry T.mkPush <$> push
+    '%' -> T.mkMap <$> dict
     _   -> fail $ BS.unpack $ "Unknown type: " `BS.snoc` c
 
 {-# INLINE array #-}
@@ -119,6 +130,13 @@ push = do
                MatchBulkString s -> return (s, V.tail ms)
                _                 -> fail "Invalid type"
      else fail $ "Invalid length of push type: " <> show len
+
+{-# INLINE dict #-}
+dict :: P.Scanner (Map Message Message)
+dict = do
+  len <- decimal
+  kvs <- pairs <$> replicateM (len * 2) parser
+  return $ Map.fromList kvs
 
 -- | Parse a non-negative decimal number in ASCII. For example, @10\r\n@
 {-# INLINE decimal #-}
@@ -202,3 +220,8 @@ runScanWithMaybe more s input = go (Just input) scanner V.empty
              then return $ V.snoc sums (Right r)
              else go (Just rest) scanner $! V.snoc sums (Right r)
         P.Fail _ errmsg -> return $ V.snoc sums (Left errmsg)
+
+pairs :: [a] -> [(a, a)]
+pairs (x0:x1:xs) = (x0, x1) : pairs xs
+pairs []         = []
+pairs _          = error "elements must be even"
