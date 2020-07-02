@@ -9,6 +9,7 @@ module Network.HESP.TCP
   , runTCPServerG'
   , open
   , close
+  , gracefulClose
   , setDefaultSocketOptions
 
   , recvMsgs
@@ -27,7 +28,7 @@ module Network.HESP.TCP
 
 import           Control.Concurrent            (forkFinally)
 import qualified Control.Concurrent.Lifted     as L
-import           Control.Exception             (bracket)
+import           Control.Exception             (SomeException, bracket)
 import           Control.Monad                 (forever, void)
 import           Control.Monad.IO.Class        (MonadIO, liftIO)
 import           Control.Monad.Trans.Control   (MonadBaseControl, liftBaseOp)
@@ -41,6 +42,7 @@ import           Data.Vector                   (Vector)
 import qualified Network.Simple.TCP            as TCP
 import           Network.Socket                (SockAddr, Socket)
 import qualified Network.Socket                as NS
+import qualified System.IO                     as IO
 
 import           Network.HESP.Protocol         (deserializeWithMaybe, serialize)
 import qualified Network.HESP.Types            as T
@@ -51,18 +53,24 @@ runTCPServer :: NS.HostName
              -> NS.ServiceName
              -> ((Socket, SockAddr) -> IO a)
              -> IO b
-runTCPServer host port =
-  runTCPServer' host port setDefaultSocketOptions gracefulClose
+runTCPServer host port = runTCPServer' host port setDefaultSocketOptions clean
+  where
+    clean (Left e, lsock)  = err e >> gracefulClose lsock
+    clean (Right _, lsock) = gracefulClose lsock
+    err :: SomeException -> IO ()
+    err e = IO.hPutStrLn IO.stderr (x ++ show e)
+    x :: String
+    x = "Network.HESP.TCP.runTCPServer: Synchronous exception happened: "
 
 runTCPServer' :: NS.HostName
               -> NS.ServiceName
               -> (Socket -> IO ()) -- ^ set socket options
-              -> (Socket -> IO ()) -- ^ computation to run if exception happens
+              -> ((Either SomeException a, Socket) -> IO ())
               -> ((Socket, SockAddr) -> IO a)
               -> IO b
 runTCPServer' host port setOpts release server = do
   addr <- resolve host port
-  bracket (open addr setOpts) close (acceptConc release server)
+  bracket (open addr setOpts) close (acceptConc server release)
 
 -- | Generalized version of 'runTCPServer'.
 runTCPServerG :: (MonadBaseControl IO m, MonadIO m)
@@ -71,21 +79,25 @@ runTCPServerG :: (MonadBaseControl IO m, MonadIO m)
               -> ((Socket, SockAddr) -> m ())
               -> m a
 runTCPServerG host port =
-  let release sock = liftIO $ gracefulClose sock
-   in runTCPServerG' host port setDefaultSocketOptions release
+  runTCPServerG' host port setDefaultSocketOptions (liftIO . clean)
+  where
+    clean (Left e, lsock)  = err e >> gracefulClose lsock
+    clean (Right _, lsock) = gracefulClose lsock
+    err :: SomeException -> IO ()
+    err e = IO.hPutStrLn IO.stderr (x ++ show e)
+    x :: String
+    x = "Network.HESP.TCP.runTCPServerG: Synchronous exception happened: "
 
 runTCPServerG' :: (MonadBaseControl IO m, MonadIO m)
                => NS.HostName
                -> NS.ServiceName
-               -> (Socket -> IO ())
-               -- ^ set socket options
-               -> (Socket -> m ())
-               -- ^ computation to run if exception happens
+               -> (Socket -> IO ())   -- ^ set socket options
+               -> ((Either SomeException (), Socket) -> m ())
                -> ((Socket, SockAddr) -> m ())
                -> m a
 runTCPServerG' host port setOpts release server = do
   addr <- liftIO $ resolve host port
-  gbracket (open addr setOpts) close (acceptConc' release server)
+  gbracket (open addr setOpts) close (acceptConc' server release)
 
 -- FIXME: more elegantly
 recvMsgs :: MonadIO m => Socket -> Int -> m (Vector (Either String T.Message))
@@ -134,25 +146,23 @@ withTcpConnection = Pool.withResource
 
 -------------------------------------------------------------------------------
 
-acceptConc :: (Socket -> IO ())
-           -> ((Socket, SockAddr) -> IO a)
-           -- ^ Computation to run when exception happends.
+acceptConc :: ((Socket, SockAddr) -> IO a)
+           -> ((Either SomeException a, Socket) -> IO ())
            -> Socket
            -> IO b
-acceptConc release server sock = forever $ do
+acceptConc server release sock = forever $ do
   (conn, peer) <- NS.accept sock
-  void $ forkFinally (server (conn, peer)) (const $ release conn)
+  void $ forkFinally (server (conn, peer)) (\r -> release (r, conn))
 
 -- | Generalized version of 'acceptConc'.
 acceptConc' :: (MonadBaseControl IO m, MonadIO m)
-            => (Socket -> m ())
-            -- ^ Computation to run when exception happends.
-            -> ((Socket, SockAddr) -> m ())
+            => ((Socket, SockAddr) -> m ())
+            -> ((Either SomeException (), Socket) -> m ())
             -> Socket
             -> m a
-acceptConc' release server sock = forever $ do
+acceptConc' server release sock = forever $ do
   (conn, peer) <- liftIO $ NS.accept sock
-  void $ L.forkFinally (server (conn, peer)) (const . release $ conn)
+  void $ L.forkFinally (server (conn, peer)) (\r -> release (r, conn))
 
 resolve :: NS.HostName -> NS.ServiceName -> IO NS.AddrInfo
 resolve host port =
