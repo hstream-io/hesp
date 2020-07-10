@@ -71,25 +71,25 @@ serializeInteger i = BS.cons ':' $ pack i <> sep
 serializeArray :: Vector Message -> ByteString
 serializeArray ms =
   let len = pack $ V.length ms
-   in BS.cons '*' $ len <> sep <> goVectorMsgs ms
+   in BS.cons '*' $ len <> sep <> encodeVectorMsgs ms
 
 serializePush :: ByteString -> Vector Message -> ByteString
 serializePush t ms =
   let len = pack $ V.length ms + 1
       pushType = serializeBulkString t
-   in BS.cons '>' $ len <> sep <> pushType <> goVectorMsgs ms
+   in BS.cons '>' $ len <> sep <> pushType <> encodeVectorMsgs ms
 
 serializeMap :: Map Message Message -> ByteString
 serializeMap m =
   let len = pack $ Map.size m  -- N.B. The size must not exceed maxBound::Int
       eles = V.fromList $ concatMap (\(k, v) -> [k, v]) (Map.toList m)
-   in BS.cons '%' $ len <> sep <> goVectorMsgs eles
+   in BS.cons '%' $ len <> sep <> encodeVectorMsgs eles
 
-goVectorMsgs :: Vector Message -> ByteString
-goVectorMsgs ms =
+encodeVectorMsgs :: Vector Message -> ByteString
+encodeVectorMsgs ms =
   if V.null ms
      then ""
-     else serialize (V.head ms) <> goVectorMsgs (V.tail ms)
+     else serialize (V.head ms) <> encodeVectorMsgs (V.tail ms)
 
 sep :: ByteString
 sep = "\r\n"
