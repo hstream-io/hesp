@@ -15,6 +15,7 @@ module Network.HESP.TCP
   , recvMsgs
   , sendMsg
   , sendMsgs
+  , sendLazy
 
     -- * Connection
   , createTcpConnectionPool
@@ -108,6 +109,9 @@ sendMsg sock = TCP.send sock . serialize
 
 sendMsgs :: (MonadIO m, Traversable t) => Socket -> t T.Message -> m ()
 sendMsgs sock = TCP.sendLazy sock . fromChunks . fmap serialize
+
+sendLazy :: MonadIO m => Socket -> LBS.ByteString -> m ()
+sendLazy = TCP.sendLazy
 
 simpleCreateTcpConnPool :: NS.HostName
                         -> NS.ServiceName
