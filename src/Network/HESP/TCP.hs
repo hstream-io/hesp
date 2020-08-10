@@ -1,13 +1,18 @@
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Network.HESP.TCP
   ( runTCPServer
   , runTCPServerG
   , runTCPServer'
   , runTCPServerG'
+
+  , connect
   , open
+  , send
+  , sendLazy
   , close
   , gracefulClose
   , setDefaultSocketOptions
@@ -15,38 +20,37 @@ module Network.HESP.TCP
   , recvMsgs
   , sendMsg
   , sendMsgs
-  , sendLazy
 
     -- * Connection
   , createTcpConnectionPool
   , withTcpConnection
   , simpleCreateTcpConnPool
-
-    -- * Re-exported from network-simple
-  , TCP.HostPreference (..)
-  , TCP.connect
   ) where
 
-import           Control.Concurrent            (forkFinally)
-import qualified Control.Concurrent.Lifted     as L
-import           Control.Exception             (SomeException, bracket)
-import           Control.Monad                 (forever, void)
-import           Control.Monad.IO.Class        (MonadIO, liftIO)
-import           Control.Monad.Trans.Control   (MonadBaseControl, liftBaseOp)
-import qualified Data.ByteString               as BS
-import qualified Data.ByteString.Lazy          as LBS
-import qualified Data.ByteString.Lazy.Internal as LBS
-import           Data.Pool                     (Pool)
-import qualified Data.Pool                     as Pool
-import           Data.Time                     (NominalDiffTime)
-import           Data.Vector                   (Vector)
-import qualified Network.Simple.TCP            as TCP
-import           Network.Socket                (SockAddr, Socket)
-import qualified Network.Socket                as NS
-import qualified System.IO                     as IO
+import           Control.Concurrent             (forkFinally)
+import qualified Control.Concurrent.Lifted      as L
+import           Control.Exception              (SomeException, bracket)
+import qualified Control.Exception.Safe         as Ex
+import           Control.Monad                  (forever, void)
+import           Control.Monad.IO.Class         (MonadIO, liftIO)
+import           Control.Monad.Trans.Control    (MonadBaseControl, liftBaseOp)
+import qualified Data.ByteString                as BS
+import qualified Data.ByteString.Lazy           as LBS
+import qualified Data.ByteString.Lazy.Internal  as LBS
+import           Data.Pool                      (Pool)
+import qualified Data.Pool                      as Pool
+import           Data.Time                      (NominalDiffTime)
+import           Data.Vector                    (Vector)
+--import qualified Network.Simple.TCP             as TCP
+import           Network.Socket                 (SockAddr, Socket)
+import qualified Network.Socket                 as NS
+import qualified Network.Socket.ByteString      as NS
+import qualified Network.Socket.ByteString.Lazy as NSL
+import qualified System.IO                      as IO
 
-import           Network.HESP.Protocol         (deserializeWithMaybe, serialize)
-import qualified Network.HESP.Types            as T
+import           Network.HESP.Protocol          (deserializeWithMaybe,
+                                                 serialize)
+import qualified Network.HESP.Types             as T
 
 -------------------------------------------------------------------------------
 
@@ -97,21 +101,19 @@ runTCPServerG' :: (MonadBaseControl IO m, MonadIO m)
                -> ((Socket, SockAddr) -> m ())
                -> m a
 runTCPServerG' host port setOpts release server = do
-  addr <- liftIO $ resolve host port
+  addr <- resolve host port
   gbracket (open addr setOpts) close (acceptConc' server release)
+
 
 -- FIXME: more elegantly
 recvMsgs :: MonadIO m => Socket -> Int -> m (Vector (Either String T.Message))
-recvMsgs sock bytes = deserializeWithMaybe (TCP.recv sock bytes) ""
+recvMsgs sock bytes = deserializeWithMaybe (recv sock bytes) ""
 
 sendMsg :: MonadIO m => Socket -> T.Message -> m ()
-sendMsg sock = TCP.send sock . serialize
+sendMsg sock = send sock . serialize
 
 sendMsgs :: (MonadIO m, Traversable t) => Socket -> t T.Message -> m ()
-sendMsgs sock = TCP.sendLazy sock . fromChunks . fmap serialize
-
-sendLazy :: MonadIO m => Socket -> LBS.ByteString -> m ()
-sendLazy = TCP.sendLazy
+sendMsgs sock = sendLazy sock . fromChunks . fmap serialize
 
 simpleCreateTcpConnPool :: NS.HostName
                         -> NS.ServiceName
@@ -139,7 +141,7 @@ createTcpConnectionPool :: NS.HostName
                         -- have idle resources available.
                         -> IO (Pool (Socket, SockAddr))
 createTcpConnectionPool host port =
-  let r = TCP.connectSock host port
+  let r = connectSock host port
    in Pool.createPool r (close . fst)
 
 withTcpConnection :: MonadBaseControl IO m
@@ -168,36 +170,66 @@ acceptConc' server release sock = forever $ do
   (conn, peer) <- liftIO $ NS.accept sock
   void $ L.forkFinally (server (conn, peer)) (\r -> release (r, conn))
 
-resolve :: NS.HostName -> NS.ServiceName -> IO NS.AddrInfo
+resolve :: MonadIO m => NS.HostName -> NS.ServiceName -> m NS.AddrInfo
 resolve host port =
   let hints = NS.defaultHints { NS.addrFlags = [NS.AI_PASSIVE]
                               , NS.addrSocketType = NS.Stream
                               }
-   in head <$> NS.getAddrInfo (Just hints) (Just host) (Just port)
+   in liftIO $ head <$> NS.getAddrInfo (Just hints) (Just host) (Just port)
 
-open :: NS.AddrInfo -> (Socket -> IO ()) -> IO Socket
-open NS.AddrInfo{..} setSocketOption = do
+open :: MonadIO m => NS.AddrInfo -> (Socket -> IO ()) -> m Socket
+open NS.AddrInfo{..} setSocketOption = liftIO $ do
   sock <- NS.socket addrFamily addrSocketType addrProtocol
   setSocketOption sock
   NS.bind sock addrAddress
   NS.listen sock (max 2048 NS.maxListenQueue)
   return sock
 
--- | Shuts down and closes the Socket, silently ignoring any synchronous
--- exception that might happen.
-close :: Socket -> IO ()
-close = TCP.closeSock
-
-gracefulClose :: Socket -> IO ()
-gracefulClose conn = NS.gracefulClose conn 5000
-
 setDefaultSocketOptions :: Socket -> IO ()
 setDefaultSocketOptions sock = do
   NS.setSocketOption sock NS.ReuseAddr 1
   NS.setSocketOption sock NS.NoDelay 1
-  NS.setSocketOption sock NS.ReuseAddr 1
   NS.setSocketOption sock NS.KeepAlive 1
   NS.withFdSocket sock NS.setCloseOnExecIfNeeded
+
+connectSock :: MonadIO m => NS.HostName -> NS.ServiceName -> m (Socket, SockAddr)
+connectSock host port = do
+  addr <- resolve host port
+  sock <- open addr setDefaultSocketOptions
+  return (sock, NS.addrAddress addr)
+
+connect :: (MonadIO m, Ex.MonadMask m)
+        => NS.HostName      -- ^ Server hostname or IP address.
+        -> NS.ServiceName   -- ^ Server service port name or number.
+        -> ((NS.Socket, NS.SockAddr) -> m r)
+        -- ^ Computation taking the communication socket and the server address.
+        -> m r
+connect host port = Ex.bracket (connectSock host port) (close . fst)
+
+{-# INLINABLE send #-}
+send :: MonadIO m => Socket -> BS.ByteString -> m ()
+send sock bytes = liftIO $ NS.sendAll sock bytes
+
+{-# INLINABLE sendLazy #-}
+sendLazy :: MonadIO m => Socket -> LBS.ByteString -> m ()
+sendLazy sock lbytes = liftIO $ NSL.sendAll sock lbytes
+
+{-# INLINABLE recv #-}
+recv :: MonadIO m => Socket -> Int -> m (Maybe BS.ByteString)
+recv sock nbytes = liftIO $ do
+  bs <- liftIO (NS.recv sock nbytes)
+  if BS.null bs then return Nothing else return (Just bs)
+
+-- | Shuts down and closes the 'NS.Socket', silently ignoring any synchronous
+-- exception that might happen.
+close :: MonadIO m => NS.Socket -> m ()
+close s = liftIO $
+  Ex.catch (Ex.finally (NS.shutdown s NS.ShutdownBoth)
+                       (NS.close s))
+           (\(_ :: Ex.SomeException) -> pure ())
+
+gracefulClose :: MonadIO m => Socket -> m ()
+gracefulClose conn = liftIO $ NS.gracefulClose conn 5000
 
 -------------------------------------------------------------------------------
 
