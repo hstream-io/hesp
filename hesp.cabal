@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               hesp
-version:            0.0.0.0
+version:            0.1.0.0
 synopsis:           Network protocol for HStream.
 description:        Please see the README on Github at
                     <https://github.com/hstream-io/hesp#readme>
@@ -9,7 +9,7 @@ license-file:       LICENSE
 copyright:          Copyright (c) 2020 EMQ Technologies Co., Ltd.
 author:             mu
 maintainer:         lambda@emqx.io
-tested-with:        GHC == 8.8.1, GHC == 8.6.5
+tested-with:        GHC == 8.8.3, GHC == 8.8.1, GHC == 8.6.5
 category:           Network
 homepage:           https://github.com/hstream-io/hesp
 bug-reports:        https://github.com/hstream-io/hesp/issues
