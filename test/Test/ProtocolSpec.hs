@@ -15,6 +15,7 @@ spec = parallel $ do
   simpleString
   bulkString
   simpleError
+  arrayType
   mapType
 
 boolean :: Spec
@@ -110,6 +111,16 @@ simpleError = describe "Simple Error" $ do
       let eptStr = "Right (SimpleError \"SOMEERROR\" "
                 <> "\"this is an error message\")"
       srcStr `shouldBe` eptStr
+
+arrayType :: Spec
+arrayType = describe "Array Type" $ do
+  context "Serialization" $ do
+    let source = P.mkArrayFromList []
+        result = "*0\r\n"
+    it "serialize empty array" $ do
+      P.serialize source `shouldBe` result
+    it "deserialize empty array" $ do
+      P.deserialize result `shouldBe` Right source
 
 mapType :: Spec
 mapType = describe "Map Type" $ do
