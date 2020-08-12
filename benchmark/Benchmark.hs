@@ -12,16 +12,16 @@ main :: IO ()
 main =
   defaultMain
     [ bgroup "mkArray"
-        [ bench "10B*10000"  $ whnf (mkArray 10) 10000
-        , bench "10000B*10"  $ whnf (mkArray 10000) 10
+        [ bench "10B*10000" $ whnf (mkArray 10) 10000
+        , bench "10000B*10" $ whnf (mkArray 10000) 10
         ]
     , bgroup "encodeArray"
-        [ bench "10B*10000"  $ whnf (encodeArray 10) 10000
-        , bench "10000B*10"  $ whnf (encodeArray 10000) 10
+        [ bench "10B*10000" $ whnf (encodeArray 10) 10000
+        , bench "10000B*10" $ whnf (encodeArray 10000) 10
         ]
     , bgroup "decodeArray"
-        [ bench "10B*10000"  $ whnf decodeArray (encodeArray 10 10000)
-        , bench "10000B*10"  $ whnf decodeArray (encodeArray 10000 10)
+        [ bench "10B*10000" $ whnf decodeArray (encodeArray 10 10000)
+        , bench "10000B*10" $ whnf decodeArray (encodeArray 10000 10)
         ]
     ]
 

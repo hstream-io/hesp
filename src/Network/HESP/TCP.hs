@@ -4,22 +4,26 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Network.HESP.TCP
-  ( runTCPServer
+  ( -- * Server
+    runTCPServer
   , runTCPServerG
   , runTCPServer'
   , runTCPServerG'
-
+    -- * Client
   , connect
-  , open
+
+    -- * Send & Recv messages
+  , recvMsgs
+  , sendMsg
+  , sendMsgs
+
+    -- * Utils
   , send
   , sendLazy
   , close
   , gracefulClose
-  , setDefaultSocketOptions
-
-  , recvMsgs
-  , sendMsg
-  , sendMsgs
+  , setDefaultServerSO
+  , setDefaultClientSO
 
     -- * Connection
   , createTcpConnectionPool
@@ -41,7 +45,6 @@ import           Data.Pool                      (Pool)
 import qualified Data.Pool                      as Pool
 import           Data.Time                      (NominalDiffTime)
 import           Data.Vector                    (Vector)
---import qualified Network.Simple.TCP             as TCP
 import           Network.Socket                 (SockAddr, Socket)
 import qualified Network.Socket                 as NS
 import qualified Network.Socket.ByteString      as NS
@@ -58,7 +61,7 @@ runTCPServer :: NS.HostName
              -> NS.ServiceName
              -> ((Socket, SockAddr) -> IO a)
              -> IO b
-runTCPServer host port = runTCPServer' host port setDefaultSocketOptions clean
+runTCPServer host port = runTCPServer' host port setDefaultServerSO clean
   where
     clean (Left e, lsock)  = err e >> gracefulClose lsock
     clean (Right _, lsock) = gracefulClose lsock
@@ -74,8 +77,8 @@ runTCPServer' :: NS.HostName
               -> ((Socket, SockAddr) -> IO a)
               -> IO b
 runTCPServer' host port setOpts release server = do
-  addr <- resolve host port
-  bracket (open addr setOpts) close (acceptConc server release)
+  addr <- resolveServer host port
+  bracket (openServer addr setOpts) close (acceptConc server release)
 
 -- | Generalized version of 'runTCPServer'.
 runTCPServerG :: (MonadBaseControl IO m, MonadIO m)
@@ -84,7 +87,7 @@ runTCPServerG :: (MonadBaseControl IO m, MonadIO m)
               -> ((Socket, SockAddr) -> m ())
               -> m a
 runTCPServerG host port =
-  runTCPServerG' host port setDefaultSocketOptions (liftIO . clean)
+  runTCPServerG' host port setDefaultServerSO (liftIO . clean)
   where
     clean (Left e, lsock)  = err e >> gracefulClose lsock
     clean (Right _, lsock) = gracefulClose lsock
@@ -101,9 +104,16 @@ runTCPServerG' :: (MonadBaseControl IO m, MonadIO m)
                -> ((Socket, SockAddr) -> m ())
                -> m a
 runTCPServerG' host port setOpts release server = do
-  addr <- resolve host port
-  gbracket (open addr setOpts) close (acceptConc' server release)
+  addr <- resolveServer host port
+  gbracket (openServer addr setOpts) close (acceptConc' server release)
 
+connect :: (MonadIO m, Ex.MonadMask m)
+        => NS.HostName      -- ^ Server hostname or IP address.
+        -> NS.ServiceName   -- ^ Server service port name or number.
+        -> ((NS.Socket, NS.SockAddr) -> m r)
+        -- ^ Computation taking the communication socket and the server address.
+        -> m r
+connect host port = Ex.bracket (connectSock host port) (close . fst)
 
 -- FIXME: more elegantly
 recvMsgs :: MonadIO m => Socket -> Int -> m (Vector (Either String T.Message))
@@ -152,6 +162,12 @@ withTcpConnection = Pool.withResource
 
 -------------------------------------------------------------------------------
 
+connectSock :: MonadIO m => NS.HostName -> NS.ServiceName -> m (Socket, SockAddr)
+connectSock host port = do
+  addr <- resolveClient host port
+  sock <- openClient addr setDefaultClientSO
+  return (sock, NS.addrAddress addr)
+
 acceptConc :: ((Socket, SockAddr) -> IO a)
            -> ((Either SomeException a, Socket) -> IO ())
            -> Socket
@@ -170,41 +186,34 @@ acceptConc' server release sock = forever $ do
   (conn, peer) <- liftIO $ NS.accept sock
   void $ L.forkFinally (server (conn, peer)) (\r -> release (r, conn))
 
-resolve :: MonadIO m => NS.HostName -> NS.ServiceName -> m NS.AddrInfo
-resolve host port =
+resolveServer :: MonadIO m => NS.HostName -> NS.ServiceName -> m NS.AddrInfo
+resolveServer host port =
   let hints = NS.defaultHints { NS.addrFlags = [NS.AI_PASSIVE]
                               , NS.addrSocketType = NS.Stream
                               }
    in liftIO $ head <$> NS.getAddrInfo (Just hints) (Just host) (Just port)
 
-open :: MonadIO m => NS.AddrInfo -> (Socket -> IO ()) -> m Socket
-open NS.AddrInfo{..} setSocketOption = liftIO $ do
+resolveClient :: MonadIO m => NS.HostName -> NS.ServiceName -> m NS.AddrInfo
+resolveClient host port =
+  let hints = NS.defaultHints { NS.addrFlags = [NS.AI_ADDRCONFIG]
+                              , NS.addrSocketType = NS.Stream
+                              }
+   in liftIO $ head <$> NS.getAddrInfo (Just hints) (Just host) (Just port)
+
+openServer :: MonadIO m => NS.AddrInfo -> (Socket -> IO ()) -> m Socket
+openServer NS.AddrInfo{..} setSocketOption = liftIO $ do
   sock <- NS.socket addrFamily addrSocketType addrProtocol
   setSocketOption sock
   NS.bind sock addrAddress
   NS.listen sock (max 2048 NS.maxListenQueue)
   return sock
 
-setDefaultSocketOptions :: Socket -> IO ()
-setDefaultSocketOptions sock = do
-  NS.setSocketOption sock NS.ReuseAddr 1
-  NS.setSocketOption sock NS.NoDelay 1
-  NS.setSocketOption sock NS.KeepAlive 1
-  NS.withFdSocket sock NS.setCloseOnExecIfNeeded
-
-connectSock :: MonadIO m => NS.HostName -> NS.ServiceName -> m (Socket, SockAddr)
-connectSock host port = do
-  addr <- resolve host port
-  sock <- open addr setDefaultSocketOptions
-  return (sock, NS.addrAddress addr)
-
-connect :: (MonadIO m, Ex.MonadMask m)
-        => NS.HostName      -- ^ Server hostname or IP address.
-        -> NS.ServiceName   -- ^ Server service port name or number.
-        -> ((NS.Socket, NS.SockAddr) -> m r)
-        -- ^ Computation taking the communication socket and the server address.
-        -> m r
-connect host port = Ex.bracket (connectSock host port) (close . fst)
+openClient :: MonadIO m => NS.AddrInfo -> (Socket -> IO ()) -> m Socket
+openClient NS.AddrInfo{..} setSocketOption = liftIO $ do
+  sock <- NS.socket addrFamily addrSocketType addrProtocol
+  setSocketOption sock
+  NS.connect sock addrAddress
+  return sock
 
 {-# INLINABLE send #-}
 send :: MonadIO m => Socket -> BS.ByteString -> m ()
@@ -230,6 +239,18 @@ close s = liftIO $
 
 gracefulClose :: MonadIO m => Socket -> m ()
 gracefulClose conn = liftIO $ NS.gracefulClose conn 5000
+
+setDefaultServerSO :: Socket -> IO ()
+setDefaultServerSO sock = do
+  NS.setSocketOption sock NS.ReuseAddr 1
+  NS.setSocketOption sock NS.NoDelay 1
+  NS.setSocketOption sock NS.KeepAlive 1
+  NS.withFdSocket sock NS.setCloseOnExecIfNeeded
+
+setDefaultClientSO :: Socket -> IO ()
+setDefaultClientSO sock = do
+  NS.setSocketOption sock NS.NoDelay 1
+  NS.setSocketOption sock NS.KeepAlive 1
 
 -------------------------------------------------------------------------------
 

@@ -10,7 +10,6 @@ module Network.HESP.Protocol
 import           Control.Monad         (replicateM)
 import           Data.ByteString       (ByteString)
 import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy  as LBS
 import           Data.Map.Strict       (Map)
 import qualified Data.Map.Strict       as Map
 import           Data.Vector           (Vector)
@@ -88,7 +87,7 @@ serializeMap m =
 
 -- __Warning__: working on large messages could be very inefficient.
 encodeVectorMsgs :: Vector Message -> ByteString
-encodeVectorMsgs = LBS.toStrict . LBS.fromChunks . V.toList . V.map serialize
+encodeVectorMsgs = BS.concat . V.toList . V.map serialize
 
 sep :: ByteString
 sep = "\r\n"
