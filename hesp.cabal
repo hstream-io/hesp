@@ -24,6 +24,7 @@ source-repository head
 library
   exposed-modules:  Network.HESP
                     Network.HESP.Commands
+                    Network.HESP.Utils
   other-modules:    Network.HESP.Protocol
                     Network.HESP.TCP
                     Network.HESP.Types

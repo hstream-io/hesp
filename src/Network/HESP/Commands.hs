@@ -62,6 +62,8 @@ commandParser msg = validateCmdProtoType msg >>= validateCommand
 replyParser :: Message -> Either ByteString (CommandName, CommandParams)
 replyParser = validateReply
 
+-------------------------------------------------------------------------------
+
 getBulkStringParam :: CommandParams -> Int -> Maybe ByteString
 getBulkStringParam params idx = T.getBulkString =<< (params !? idx)
 

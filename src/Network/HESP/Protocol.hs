@@ -18,6 +18,7 @@ import qualified Scanner               as P
 
 import           Network.HESP.Types    (Message (..))
 import qualified Network.HESP.Types    as T
+import           Network.HESP.Utils    (pairs)
 
 -------------------------------------------------------------------------------
 
@@ -218,8 +219,3 @@ runScanWithMaybe more s input = go (Just input) scanner V.empty
              then return $ V.snoc sums (Right r)
              else go (Just rest) scanner $! V.snoc sums (Right r)
         P.Fail _ errmsg -> return $ V.snoc sums (Left errmsg)
-
-pairs :: [a] -> [(a, a)]
-pairs (x0:x1:xs) = (x0, x1) : pairs xs
-pairs []         = []
-pairs _          = error "elements must be even"
